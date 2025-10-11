@@ -29,6 +29,10 @@ const router = createBrowserRouter([
         element: <StrategyPage />,
       },
       {
+        path: '/strategy/:campaignId',
+        element: <StrategyPage />,
+      },
+      {
         path: '/campaign/:id',
         element: <CampaignCanvasPage />,
       },

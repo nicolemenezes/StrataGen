@@ -1,23 +1,37 @@
 // /backend/src/routes/campaignRoutes.js
+
 import express from 'express';
-import campaignController from '../controllers/campaignController.js';
-import checkJwt from '../middleware/authMiddleware.js'; // 👈 Import the middleware
+import * as campaignController from '../controllers/campaignController.js';
+import { checkJwt } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Apply the middleware to all routes in this file
-// Any request to these endpoints MUST have a valid JWT.
+// Protect all routes in this file with JWT validation
 router.use(checkJwt);
 
-// Define your protected routes
-router.post('/strategize', createStrategy); // This creates the initial campaign
-router.post('/:campaignId/chat', continueChat); // For ongoing chat
-router.post('/:campaignId/approve', approveStrategy); // For final approval
-router.post('/:id/refine-strategy', campaignController.refineStrategy);
-router.post('/:id/generate-assets', campaignController.generateAssets);
-router.get('/:id', campaignController.getCampaignData);
+// --- Core Strategy & Chat Flow ---
 
-// You can also apply it to individual routes like this:
-// router.post('/strategize', checkJwt, campaignController.createStrategy);
+// Creates a new campaign AND gets the first AI response in one step.
+router.post('/strategize-and-chat', campaignController.createStrategyAndChat);
+
+// Continues an existing chat conversation.
+router.post('/:campaignId/chat', campaignController.continueChat);
+
+// Gets the chat history for a specific campaign.
+router.get('/:campaignId/chat', campaignController.getChatHistory);
+
+// Approves the final strategy and queues the orchestration tasks.
+router.post('/:campaignId/approve', campaignController.approveStrategy);
+
+
+// --- Data Fetching & Regeneration Flow ---
+
+// Gets all data for a single campaign (details, tasks, assets, copies).
+router.get('/:campaignId', campaignController.getCampaignData);
+
+// Queues a regeneration task for a specific piece of content.
+// Note: This route operates on a task ID, not a campaign ID.
+router.post('/tasks/:taskId/regenerate', campaignController.regenerateAsset);
+
 
 export default router;
