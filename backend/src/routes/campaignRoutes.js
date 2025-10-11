@@ -10,28 +10,15 @@ const router = express.Router();
 router.use(checkJwt);
 
 // --- Core Strategy & Chat Flow ---
-
-// Creates a new campaign AND gets the first AI response in one step.
 router.post('/strategize-and-chat', campaignController.createStrategyAndChat);
-
-// Continues an existing chat conversation.
 router.post('/:campaignId/chat', campaignController.continueChat);
-
-// Gets the chat history for a specific campaign.
 router.get('/:campaignId/chat', campaignController.getChatHistory);
-
-// Approves the final strategy and queues the orchestration tasks.
 router.post('/:campaignId/approve', campaignController.approveStrategy);
 
-
 // --- Data Fetching & Regeneration Flow ---
-
-// Gets all data for a single campaign (details, tasks, assets, copies).
 router.get('/:campaignId', campaignController.getCampaignData);
 
-// Queues a regeneration task for a specific piece of content.
-// Note: This route operates on a task ID, not a campaign ID.
-router.post('/tasks/:taskId/regenerate', campaignController.regenerateAsset);
-
+// Note: The specific regeneration endpoint for assets.
+router.post('/assets/:assetId/regenerate', campaignController.regenerateAsset);
 
 export default router;

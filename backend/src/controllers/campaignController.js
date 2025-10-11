@@ -89,37 +89,63 @@ export const approveStrategy = async (req, res) => {
     queueAssetGenerationTasks(campaignId, highLevelStrategy);
     
     res.status(200).json({ message: "Strategy approved! Generating detailed plan and queuing assets..." });
-  } catch (error)
-    {
+  } catch (error) {
     console.error("Approval failed:", error.message);
     res.status(500).json({ message: "Failed to approve strategy." });
   }
 };
 
-// --- DATA FETCHING & REGENERATION (MISSING FUNCTIONS) ---
+// /backend/src/controllers/campaignController.js
+
+// /backend/src/controllers/campaignController.js
 
 export const getCampaignData = async (req, res) => {
+  // --- START: DEBUG LOGGING ---
+  console.log('--- TRIGGERED: GET /api/campaigns/:id ---');
+  
   const { campaignId } = req.params;
   const userId = req.auth.sub;
+
+  console.log('1. Attempting to fetch data for Campaign ID:', campaignId);
+  console.log('2. Authenticated User ID (from JWT):', userId);
+  // --- END: DEBUG LOGGING ---
+
   try {
-    const { data: campaign, error } = await supabase.from('campaigns').select('*').eq('id', campaignId).eq('user_id', userId).single();
-    if (error) return res.status(404).json({ message: "Campaign not found." });
+    // 👇 THIS QUERY IS NOW CORRECTED 👇
+    const { data: campaign, error } = await supabase
+      .from('campaigns')
+      .select(`
+        *,
+        tasks(*),
+        assets(*),
+        copies(*),
+        campaign_influencer_tips(*, influencers(*)) 
+      `)
+      .eq('id', campaignId)
+      .eq('user_id', userId)
+      .single();
     
-    const [tasks, assets, copies] = await Promise.all([
-        supabase.from('tasks').select('*').eq('campaign_id', campaignId),
-        supabase.from('assets').select('*').eq('campaign_id', campaignId),
-        supabase.from('copies').select('*').eq('campaign_id', campaignId)
-    ]);
-    
-    res.status(200).json({ ...campaign, tasks: tasks.data, assets: assets.data, copies: copies.data });
+    if (error || !campaign) {
+      console.log('3. ❌ Query Result: Campaign NOT FOUND for this user.');
+      if (error) {
+        console.error('   - Supabase error:', error.message);
+      } else {
+        console.log('   - Reason: No campaign matched BOTH the Campaign ID and the User ID.');
+      }
+      return res.status(404).json({ message: "Campaign not found or you do not have access." });
+    }
+
+    console.log('3. ✅ Query Result: Campaign found successfully!');
+    res.status(200).json(campaign);
+
   } catch (error) {
-    console.error("Failed to retrieve campaign data:", error.message);
+    console.error("4. ❌ Critical Error in getCampaignData:", error.message);
     res.status(500).json({ message: "Failed to retrieve campaign data." });
   }
 };
 
 export const regenerateAsset = async (req, res) => {
-  const { taskId } = req.params;
+  const { assetId } = req.params;
   const { feedback } = req.body;
   const userId = req.auth.sub;
 
@@ -127,18 +153,19 @@ export const regenerateAsset = async (req, res) => {
     return res.status(400).json({ message: "Feedback is required for regeneration." });
   }
   try {
-    const { data: originalTask, error: taskError } = await supabase
-      .from('tasks')
-      .select('*, campaigns!inner(user_id)')
-      .eq('id', taskId)
+    const { data: originalAsset, error: assetError } = await supabase
+      .from('assets')
+      .select('*, tasks!inner(*, campaigns!inner(user_id))')
+      .eq('id', assetId)
       .single();
 
-    if (taskError || !originalTask || originalTask.campaigns.user_id !== userId) {
-      return res.status(404).json({ message: "Task not found or you don't have access." });
+    if (assetError || !originalAsset || originalAsset.tasks.campaigns.user_id !== userId) {
+      return res.status(404).json({ message: "Asset not found or you don't have access." });
     }
 
-    const prompt = `You are a creative director. An AI generated content based on an old prompt, and the user wants to revise it. Create a new, improved prompt that incorporates the user's feedback.\n\nOld Prompt: "${originalTask.meta.prompt}"\n\nUser Feedback: "${feedback}"\n\nNew Prompt:`;
-    const newPrompt = await generateChatResponse(prompt);
+    const originalTask = originalAsset.tasks;
+    const refinementPrompt = `You are a creative director AI. Your task is to refine an image generation prompt based on user feedback.\n\n**Original Prompt:** "${originalTask.meta.prompt}"\n\n**User Feedback:** "${feedback}"\n\n**Your Task:** Rewrite the original prompt to incorporate the user's feedback. Intelligently merge the ideas into a single, cohesive, new prompt. Output ONLY the new prompt text.`;
+    const newPrompt = await generateChatResponse(refinementPrompt);
 
     const { data: newTask, error: insertError } = await supabase
       .from('tasks')
@@ -146,7 +173,7 @@ export const regenerateAsset = async (req, res) => {
         campaign_id: originalTask.campaign_id,
         type: originalTask.type,
         status: 'pending',
-        meta: { ...originalTask.meta, prompt: newPrompt, regenerated_from: taskId }
+        meta: { ...originalTask.meta, prompt: newPrompt, regenerated_from_task: originalTask.id }
       })
       .select('id')
       .single();
@@ -181,7 +208,6 @@ export const getChatHistory = async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve chat history." });
   }
 };
-
 
 // --- HELPER FUNCTIONS FOR PROMPTS ---
 
@@ -247,8 +273,8 @@ Extract all data from the Markdown and map it to the corresponding fields in the
   "days": [
     {
       "day": "number",
-      "platform": "instagram" | "linkedin",
-      "content_type": "post" | "blog post",
+      "platform": "string (one of: instagram, linkedin)",
+      "content_type": "string (one of: post, blog post)",
       "concept": "string"
     }
   ],

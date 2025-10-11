@@ -1,5 +1,5 @@
 // /frontend/src/pages/StrategyPage.tsx
-import React, { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import apiClient from '../services/apiClient';
