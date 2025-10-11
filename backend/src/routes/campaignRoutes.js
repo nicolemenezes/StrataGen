@@ -10,7 +10,9 @@ const router = express.Router();
 router.use(checkJwt);
 
 // Define your protected routes
-router.post('/strategize', campaignController.createStrategy);
+router.post('/strategize', createStrategy); // This creates the initial campaign
+router.post('/:campaignId/chat', continueChat); // For ongoing chat
+router.post('/:campaignId/approve', approveStrategy); // For final approval
 router.post('/:id/refine-strategy', campaignController.refineStrategy);
 router.post('/:id/generate-assets', campaignController.generateAssets);
 router.get('/:id', campaignController.getCampaignData);
