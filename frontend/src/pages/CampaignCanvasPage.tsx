@@ -2,19 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast'; // Assuming you use react-hot-toast for notifications
-import apiClient from '../services/apiClient'; // Your pre-configured Axios instance
-import { supabase } from '../services/supabaseClient'; // Your initialized Supabase client
+import { toast } from 'react-hot-toast';
+import apiClient from '../services/apiClient';
+import { supabase } from '../services/supabaseClient';
 
 // --- 1. DEFINE TYPES AND HELPER FUNCTIONS ---
 
-/**
- * A robust helper function to clean the extra conversational text and formatting
- * from the raw AI-generated content.
- */
 const cleanAiContent = (content: string, type: 'caption' | 'blog_title' | 'blog_body'): string => {
   if (!content) return '';
-
   try {
     if (type === 'caption') {
       const parts = content.split(/---\s*|\*\*Image Caption:\*\*/i);
@@ -35,9 +30,7 @@ const cleanAiContent = (content: string, type: 'caption' | 'blog_title' | 'blog_
     if (type === 'blog_body') {
       const headingMatch = content.match(/###\s(.*?)\n/);
       let body = content;
-      if (headingMatch && headingMatch.index) {
-        body = content.substring(headingMatch.index);
-      }
+      if (headingMatch && headingMatch.index) { body = content.substring(headingMatch.index); }
       const finalParts = body.split(/\n---\n#/);
       return finalParts[0].trim();
     }
@@ -45,9 +38,9 @@ const cleanAiContent = (content: string, type: 'caption' | 'blog_title' | 'blog_
   return content;
 };
 
-// --- Type definitions that match your database schema and backend response ---
+// --- Type definitions ---
 interface Influencer { id: string; name: string; profile_url: string; platform: string; }
-interface InfluencerTip { id: string; tip: string; influencers: Influencer; } // Assumes backend joins influencers table
+interface InfluencerTip { id: string; tip: string; influencers: Influencer; }
 interface Asset { id: string; storage_path: string; metadata: { day?: number; platform?: string; }; }
 interface Copy { id: string; type: 'caption' | 'blog_title' | 'blog_body'; content: string; metadata: { day?: number; platform?: string; }; }
 interface DayPlan { day: number; platform: 'instagram' | 'linkedin'; content_type: 'post' | 'blog post'; concept: string; key: string; assets: Asset[]; copies: Copy[]; }
@@ -56,10 +49,7 @@ interface CampaignData { id: string; title: string; strategy: any; assets: Asset
 // --- 2. DEFINE INTERNAL UI COMPONENTS ---
 
 const InstagramPostCard: React.FC<{ asset?: Asset; copy?: Copy }> = ({ asset, copy }) => {
-  const imageUrl = asset 
-    ? supabase.storage.from('assets').getPublicUrl(asset.storage_path).data.publicUrl 
-    : null;
-
+  const imageUrl = asset ? supabase.storage.from('assets').getPublicUrl(asset.storage_path).data.publicUrl : null;
   const cleanedCaption = copy ? cleanAiContent(copy.content, 'caption') : 'Generating caption...';
 
   return (
@@ -67,13 +57,9 @@ const InstagramPostCard: React.FC<{ asset?: Asset; copy?: Copy }> = ({ asset, co
       {imageUrl ? (
         <img src={imageUrl} alt="Campaign asset" className="w-full h-auto object-cover bg-gray-100" />
       ) : (
-        <div className="w-full h-80 bg-gray-200 flex items-center justify-center">
-          <p className="text-gray-500">Generating Image...</p>
-        </div>
+        <div className="w-full h-80 bg-gray-200 flex items-center justify-center"><p className="text-gray-500">Generating Image...</p></div>
       )}
-      <div className="p-4">
-        <p className="text-gray-700 whitespace-pre-wrap text-sm">{cleanedCaption}</p>
-      </div>
+      <div className="p-4"><p className="text-gray-700 whitespace-pre-wrap text-sm">{cleanedCaption}</p></div>
     </div>
   );
 };
@@ -85,8 +71,7 @@ const LinkedInBlogCard: React.FC<{ titleCopy?: Copy; bodyCopy?: Copy }> = ({ tit
 
     return (
         <div className="border rounded-lg p-5 bg-gray-50">
-            <h3 className="text-2xl font-bold text-blue-800 mb-2">{cleanedTitle}</h3>
-            <hr className="my-4" />
+            <h3 className="text-2xl font-bold text-blue-800 mb-2">{cleanedTitle}</h3><hr className="my-4" />
             <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formattedBody }} />
         </div>
     );
@@ -98,18 +83,50 @@ const InfluencerCard: React.FC<{ tip: InfluencerTip }> = ({ tip }) => (
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-200 to-blue-300 flex-shrink-0"></div>
             <div>
                 <p className="font-semibold text-sm text-gray-800">{tip.influencers?.name || 'Unknown Influencer'}</p>
-                <a href={tip.influencers?.profile_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
-                    View Profile
-                </a>
+                <a href={tip.influencers?.profile_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">View Profile</a>
             </div>
         </div>
         <p className="text-sm text-gray-700">💡 {tip.tip}</p>
     </div>
 );
 
+// ✅ NEW: Strategy Summary Component
+const StrategySummaryCard: React.FC<{ strategy: any }> = ({ strategy }) => {
+  if (!strategy) return null;
+  
+  const renderItem = (label: string, value?: string | string[]) => {
+    if (!value || value.length === 0) return null;
+    return (
+      <div>
+        <h4 className="font-semibold text-gray-700 text-sm">{label}</h4>
+        {Array.isArray(value) ? (
+          <div className="flex flex-wrap gap-2 mt-1">
+            {value.map(item => (
+              <span key={item} className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full">{item}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-600 text-sm">{value}</p>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h3 className="text-xl font-semibold mb-3">Strategy Summary</h3>
+      <div className="bg-white p-4 rounded-lg shadow-sm border space-y-4">
+        {renderItem("Theme", strategy.theme)}
+        {renderItem("Brand Tone", strategy.brand_tone)}
+        {renderItem("Hashtags", strategy.hashtags)}
+        {renderItem("Posting Schedule", strategy.posting_schedule)}
+      </div>
+    </div>
+  );
+};
+
 const DayContentCard: React.FC<{ dayData: DayPlan }> = ({ dayData }) => {
     const { day, platform, concept, content_type, assets, copies } = dayData;
-    
     return (
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
             <h2 className="text-2xl font-bold text-gray-800 mb-1"> Day {day}: <span className="capitalize">{platform}</span> </h2>
@@ -134,7 +151,6 @@ const CampaignCanvasPage = () => {
     useEffect(() => {
         const fetchCampaignData = async () => {
             if (!campaignId) return;
-
             setIsLoading(true);
             try {
                 const response = await apiClient.get<CampaignData>(`/api/campaigns/${campaignId}`);
@@ -146,18 +162,12 @@ const CampaignCanvasPage = () => {
                 setIsLoading(false);
             }
         };
-
         fetchCampaignData();
     }, [campaignId]);
 
-    if (isLoading) {
-        return <div className="p-8 text-center">Loading Campaign Canvas...</div>;
-    }
-    if (!campaignData) {
-        return <div className="p-8 text-center text-red-600">Campaign not found or you do not have access.</div>;
-    }
+    if (isLoading) return <div className="p-8 text-center">Loading Campaign Canvas...</div>;
+    if (!campaignData) return <div className="p-8 text-center text-red-600">Campaign not found or access denied.</div>;
 
-    // --- Data Processing Logic ---
     const groupedContent: DayPlan[] = (campaignData.strategy?.days || []).map((dayPlan: any, index: number) => ({
         ...dayPlan,
         key: `day-plan-${index}`,
@@ -167,29 +177,26 @@ const CampaignCanvasPage = () => {
 
     return (
         <div className="flex flex-col lg:flex-row p-4 md:p-8 lg:p-12 gap-10 bg-gray-50 min-h-screen font-sans">
-            {/* Left Column: Day-by-day Content */}
             <div className="flex-[2.5] space-y-8">
                 <h1 className="text-4xl font-bold text-gray-800">{campaignData.title}</h1>
                 {groupedContent.map((dayData) => (
                     <DayContentCard key={dayData.key} dayData={dayData} />
                 ))}
             </div>
-
-            {/* Right Column: Influencers Panel */}
             <div className="flex-1">
                 <div className="sticky top-8 space-y-6">
                     <div>
                         <h3 className="text-xl font-semibold mb-3">Influencers & Tips</h3>
-                        <div className="max-h-[60vh] overflow-y-auto bg-white p-4 rounded-lg shadow-sm border space-y-4">
+                        <div className="max-h-[40vh] overflow-y-auto bg-white p-4 rounded-lg shadow-sm border space-y-4">
                             {campaignData.campaign_influencer_tips.length > 0 ? (
-                                campaignData.campaign_influencer_tips.map(tip => (
-                                    <InfluencerCard key={tip.id} tip={tip} />
-                                ))
+                                campaignData.campaign_influencer_tips.map(tip => <InfluencerCard key={tip.id} tip={tip} />)
                             ) : (
-                                <p className="text-gray-500 text-sm">No influencer tips for this campaign yet.</p>
+                                <p className="text-gray-500 text-sm">No influencer tips yet.</p>
                             )}
                         </div>
                     </div>
+                    {/* ✅ NEW: Strategy Summary Card added here */}
+                    <StrategySummaryCard strategy={campaignData.strategy} />
                 </div>
             </div>
         </div>
