@@ -27,29 +27,36 @@ export function CTASection({
   className,
 }: CTAProps) {
   return (
-    <section className={cn("overflow-visible pt-0 md:pt-0", className)}>
+    // prevent horizontal scrolling by clipping overflow on the section
+    <section className={cn("overflow-hidden pt-0 md:pt-0", className)}>
       <div className="relative mx-auto flex w-full flex-col items-center gap-6 px-8 py-12 text-center sm:gap-8 md:py-24">
-        {/* wrapper - increased max width so card stretches wider */}
-        <div className="relative w-full max-w-[1600px]">
+        {/* wrapper - keep full width but do not use vw which causes horizontal scroll */}
+        <div className="relative w-full">
           {/* Glow behind everything (large, soft, curved) */}
           {withGlow && (
             <div
               aria-hidden
-              className="pointer-events-none absolute left-1/2 bottom-0 -translate-x-1/2 z-0 w-[160%] h-44 -mb-6 rounded-b-[5rem] bg-gradient-to-b from-transparent via-orange-100/50 to-orange-300/70 blur-3xl opacity-95"
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-44 -mb-6 rounded-b-[5rem] blur-3xl opacity-95"
+              style={{
+                height: "300px",
+                borderRadius: "4rem",
+                filter: "blur(56px)",
+                opacity: 0.95,
+                background:
+                  "radial-gradient(1200px 240px at 50% 70%, rgba(250,180,120,0.28) 0%, rgba(250,180,120,0.12) 18%, rgba(250,180,120,0.04) 38%, transparent 60%)",
+              }}
             />
           )}
 
           {/* outer border with stronger curve (no top border) */}
           <div
             aria-hidden
-            className="absolute left-1/2 z-10 -translate-x-1/2"
+            className="absolute inset-x-0 z-10 top-2"
             style={{
-              width: "calc(92vw)",
-              maxWidth: "1200px",
-              top: "8px",
               borderRadius: "3.5rem",
-              //border: "1px solid rgba(0,0,0,0.08)",
               borderTopWidth: 0, // remove top border
+              borderLeft: "1px solid rgba(0,0,0,0.06)",
+              borderRight: "1px solid rgba(0,0,0,0.06)",
               boxShadow: "0 2px 0 rgba(255,255,255,0.6) inset",
             }}
           />
@@ -57,11 +64,9 @@ export function CTASection({
           {/* extended bottom border (wider than main border) */}
           <div
             aria-hidden
-            className="absolute left-1/2 z-15 -translate-x-1/2"
+            className="absolute inset-x-0 z-15"
             style={{
-              width: "calc(96vw + 120px)", // extend bottom border wider
-              maxWidth: "00px",
-              bottom: "-8px",
+              bottom: "-12px",
               height: 0,
               borderBottom: "1px solid rgba(0,0,0,0.08)",
               borderBottomLeftRadius: "4rem",
