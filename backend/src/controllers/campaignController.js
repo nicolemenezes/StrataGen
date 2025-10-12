@@ -289,6 +289,28 @@ export const handleCommand = async (req, res) => {
         break;
       }
       
+      // ✅ START: MODIFICATION FOR COPY REGENERATION
+      case 'regenerate_copy': {
+        const { day, type, feedback } = actionJson.params;
+        const originalCopy = campaign.copies.find(c => c.metadata.day === day && c.type === type);
+        if (!originalCopy) throw new Error(`No copy of type '${type}' found for day ${day}`);
+
+        const concept = campaign.strategy.days.find(d => d.day === day)?.concept || 'the campaign theme';
+        const refinementPrompt = `The overall concept is: "${concept}". The original copy was: "${originalCopy.content}". The user's feedback is: "${feedback}". Please generate a new version of the copy incorporating the feedback.`;
+        const newContent = await generateChatResponse(refinementPrompt);
+
+        await supabase.from('copies').insert({
+            campaign_id: campaignId,
+            type: originalCopy.type,
+            content: newContent,
+            metadata: { ...originalCopy.metadata, feedback, regenerated_from: originalCopy.id }
+        });
+        // This is a direct update instead of a task, assuming it's fast.
+        // If it were slow, we would queue a 'copy_generate' task instead.
+        break;
+      }
+      // ✅ END: MODIFICATION FOR COPY REGENERATION
+
       case 'regenerate_influencers': {
          const { feedback } = actionJson.params;
          const newQuery = `Original influencer query was: "${campaign.strategy.influencer_query}". New request is: "${feedback}". Create an optimized search query for finding these new influencers.`;
@@ -343,6 +365,12 @@ Analyze the user's command and the campaign context. Determine the user's primar
     -   The user wants to find different influencers.
     -   Extract the user's new criteria.
     -   **Required params:** { "feedback": "<string>" }
+    
+3.  **action: "regenerate_copy"**
+    - The user wants to change the text for a specific day.
+    - Identify the day number and creative feedback.
+    - Determine the type of copy (e.g., 'caption', 'blog_title', 'blog_body').
+    - **Required params:** { "day": <number>, "type": "<'caption'|'blog_title'|'blog_body'>", "feedback": "<string>" }
 
 ## OUTPUT RULES
 - Your ENTIRE response MUST be ONLY the single, valid JSON object.
@@ -358,7 +386,20 @@ Your Output:
     "feedback": "make it more futuristic"
   }
 }
+
+### Example 2
+User Command: "rewrite the caption for day 2 to be funnier"
+Your Output:
+{
+  "action": "regenerate_copy",
+  "params": {
+    "day": 2,
+    "type": "caption",
+    "feedback": "make it funnier"
+  }
+}
 `;
+
 
 
 // --- HELPER FUNCTIONS FOR PROMPTS ---
