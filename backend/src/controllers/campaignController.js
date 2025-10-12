@@ -209,6 +209,158 @@ export const getChatHistory = async (req, res) => {
   }
 };
 
+export const updateCopyContent = async (req, res) => {
+  const { copyId } = req.params;
+  const { content } = req.body;
+  const userId = req.auth.sub;
+
+  if (!content) {
+    return res.status(400).json({ message: "Content cannot be empty." });
+  }
+
+  try {
+    // Verify ownership before updating
+    const { data: copyData, error: ownerError } = await supabase
+      .from('copies')
+      .select('campaigns!inner(user_id)')
+      .eq('id', copyId)
+      .eq('campaigns.user_id', userId)
+      .single();
+
+    if (ownerError || !copyData) {
+      return res.status(404).json({ message: "Copy not found or you do not have access." });
+    }
+
+    // Perform the update
+    const { error: updateError } = await supabase
+      .from('copies')
+      .update({ content, updated_at: new Date() }) // Assuming you add an updated_at to copies
+      .eq('id', copyId);
+
+    if (updateError) throw updateError;
+
+    res.status(200).json({ message: "Content updated successfully." });
+  } catch (error) {
+    console.error("Failed to update copy content:", error);
+    res.status(500).json({ message: "Failed to update content." });
+  }
+};
+
+
+// ✅ NEW CONTROLLER FUNCTION (FEATURE 2: AI COMMAND BAR)
+export const handleCommand = async (req, res) => {
+  const { campaignId } = req.params;
+  const { prompt: userCommand } = req.body;
+  const userId = req.auth.sub;
+
+  try {
+    // 1. Fetch the campaign to verify ownership and get context
+    const { data: campaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .select('strategy, assets(*), copies(*)')
+      .eq('id', campaignId)
+      .eq('user_id', userId)
+      .single();
+
+    if (campaignError || !campaign) {
+      return res.status(404).json({ message: "Campaign not found." });
+    }
+
+    // 2. Use an AI to interpret the user's command into a structured action
+    const routerPrompt = getCommandRouterPrompt(userCommand, campaign.strategy);
+    const actionJson = await generateJsonContent(routerPrompt);
+
+    // 3. Execute the action determined by the AI
+    switch (actionJson.action) {
+      case 'regenerate_image': {
+        const { day, feedback } = actionJson.params;
+        const originalAsset = campaign.assets.find(a => a.metadata.day === day);
+        if (!originalAsset) throw new Error(`No asset found for day ${day}`);
+
+        const refinementPrompt = `Based on the original prompt: "${originalAsset.metadata.prompt}", incorporate this feedback: "${feedback}". Output only the new, single, refined image generation prompt.`;
+        const newPrompt = await generateChatResponse(refinementPrompt);
+
+        await supabase.from('tasks').insert({
+          campaign_id: campaignId,
+          type: 'image_generate',
+          status: 'pending',
+          meta: { ...originalAsset.metadata, prompt: newPrompt, feedback }
+        });
+        break;
+      }
+      
+      case 'regenerate_influencers': {
+         const { feedback } = actionJson.params;
+         const newQuery = `Original influencer query was: "${campaign.strategy.influencer_query}". New request is: "${feedback}". Create an optimized search query for finding these new influencers.`;
+         const newInfluencerQuery = await generateChatResponse(newQuery);
+
+         await supabase.from('tasks').insert({
+            campaign_id: campaignId,
+            type: 'influencer_search',
+            status: 'pending',
+            meta: { query: newInfluencerQuery, theme: campaign.strategy.theme }
+         });
+         // Also clear old tips
+         await supabase.from('campaign_influencer_tips').delete().eq('campaign_id', campaignId);
+         break;
+      }
+
+      default:
+        return res.status(400).json({ message: "Sorry, I couldn't understand that command." });
+    }
+
+    res.status(202).json({ message: "Regeneration task has been queued!" });
+  } catch (error) {
+    console.error("Failed to handle command:", error);
+    res.status(500).json({ message: "Failed to process your command." });
+  }
+};
+
+// ✅ NEW HELPER PROMPT FOR THE COMMAND ROUTER
+const getCommandRouterPrompt = (userCommand, strategy) => `
+# ROLE: AI Command Interpreter
+You are an expert at interpreting a user's natural language command into a structured JSON action.
+
+## CONTEXT
+- The user is looking at a social media campaign plan.
+- The plan has multiple days, each with content (images, captions, blogs).
+- The plan also has a list of influencers.
+- Campaign Strategy: ${JSON.stringify(strategy)}
+
+## USER COMMAND
+"${userCommand}"
+
+## YOUR TASK
+Analyze the user's command and the campaign context. Determine the user's primary intent and convert it into a single JSON object with an "action" and "params".
+
+## AVAILABLE ACTIONS & REQUIRED PARAMS
+1.  **action: "regenerate_image"**
+    -   Identify which day the user wants to change.
+    -   Extract the user's creative feedback.
+    -   **Required params:** { "day": <number>, "feedback": "<string>" }
+
+2.  **action: "regenerate_influencers"**
+    -   The user wants to find different influencers.
+    -   Extract the user's new criteria.
+    -   **Required params:** { "feedback": "<string>" }
+
+## OUTPUT RULES
+- Your ENTIRE response MUST be ONLY the single, valid JSON object.
+- If you cannot determine a valid action, output: { "action": "unknown" }
+
+### Example
+User Command: "change the picture for day 1 to be more futuristic"
+Your Output:
+{
+  "action": "regenerate_image",
+  "params": {
+    "day": 1,
+    "feedback": "make it more futuristic"
+  }
+}
+`;
+
+
 // --- HELPER FUNCTIONS FOR PROMPTS ---
 
 const getChatPrompt = (conversation) => `

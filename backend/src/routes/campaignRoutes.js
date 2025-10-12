@@ -21,4 +21,10 @@ router.get('/:campaignId', campaignController.getCampaignData);
 // Note: The specific regeneration endpoint for assets.
 router.post('/assets/:assetId/regenerate', campaignController.regenerateAsset);
 
+// ✅ NEW: Route for direct content updates (Feature 1)
+router.put('/copies/:copyId', campaignController.updateCopyContent);
+
+// ✅ NEW: Route for the AI command bar (Feature 2)
+router.post('/:campaignId/command', campaignController.handleCommand);
+
 export default router;
