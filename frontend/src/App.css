@@ -109,7 +109,26 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+/* filepath: c:\Users\Alston Dsouza\Documents\Recursion_Final-Round_13\frontend\src\styles\globals.css */
+/* merge into your existing global CSS */
+@layer utilities {
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-700 { animation-delay: 700ms; }
 
+  .fade-top-lg {
+    mask-image: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 1) 8rem);
+  }
+
+  .animate-in { animation-duration: 1000ms; animation-fill-mode: forwards; animation-timing-function: ease-out; }
+}
+
+@layer base {
+  :root { --brand: 27 96% 61%; --brand-foreground: 31 97% 72%; }
+  .dark { --brand: 31 97% 72%; --brand-foreground: 27 96% 61%; }
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
