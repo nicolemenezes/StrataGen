@@ -227,6 +227,7 @@ ${conversation}
     * **CONTENT TYPES:** You can ONLY use \`post\` and \`blog post\`.
     * **FORBIDDEN CONTENT:** Do NOT include Reels, videos, Stories, or Challenges.
     * **MARKDOWN ONLY:** Your entire response MUST be in the specified Markdown format.
+    * **\`linkedin\` posts MUST be "blog post" content types and instgram posts MUST be "post" content types.
 
 ## MARKDOWN OUTPUT FORMAT
 ### Theme
