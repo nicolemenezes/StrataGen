@@ -44,6 +44,24 @@ export const createStrategyAndChat = async (req, res) => {
   }
 };
 
+export const getAllCampaigns = async (req, res) => {
+  const userId = req.auth.sub;
+  try {
+    const { data: campaigns, error } = await supabase
+      .from('campaigns')
+      .select('id, title, status, created_at') // Only select data needed for the dashboard
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }); // Show newest first
+
+    if (error) throw error;
+
+    res.status(200).json(campaigns);
+  } catch (error) {
+    console.error("Failed to retrieve campaigns:", error.message);
+    res.status(500).json({ message: "Failed to retrieve campaigns." });
+  }
+};
+
 export const continueChat = async (req, res) => {
   const { campaignId } = req.params;
   const { message } = req.body;

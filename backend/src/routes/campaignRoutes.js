@@ -9,6 +9,13 @@ const router = express.Router();
 // Protect all routes in this file with JWT validation
 router.use(checkJwt);
 
+
+// ✅ START: ADD THIS NEW ROUTE
+// Route to get all campaigns for the dashboard
+router.get('/', campaignController.getAllCampaigns);
+// ✅ END: ADD THIS NEW ROUTE
+
+
 // --- Core Strategy & Chat Flow ---
 router.post('/strategize-and-chat', campaignController.createStrategyAndChat);
 router.post('/:campaignId/chat', campaignController.continueChat);
@@ -16,6 +23,7 @@ router.get('/:campaignId/chat', campaignController.getChatHistory);
 router.post('/:campaignId/approve', campaignController.approveStrategy);
 
 // --- Data Fetching & Regeneration Flow ---
+// Note: This route now correctly handles getting a SINGLE campaign by its ID.
 router.get('/:campaignId', campaignController.getCampaignData);
 
 // Note: The specific regeneration endpoint for assets.
