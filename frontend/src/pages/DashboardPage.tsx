@@ -221,8 +221,17 @@ const DashboardPage = () => {
         </div>
         
         {/* --- Campaign List --- */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Your Campaigns</h2>
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Your Campaigns</h2>
+            <button
+              onClick={() => navigate('/strategy')}
+              className="ml-4 px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700"
+              aria-label="Create new strategy"
+            >
+              New Strategy
+            </button>
+          </div>
           <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
             {campaigns.length > 0 ? (
               <ul className="divide-y divide-gray-200">
