@@ -222,6 +222,13 @@ const CampaignCanvasPage = () => {
                 toast.success('An image has been updated!');
                 fetchCampaignData();
             })
+            // ✅ START: ADD THIS NEW LISTENER
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'copies', filter: `campaign_id=eq.${campaignId}` }, (payload) => {
+                console.log('Copy change received!', payload);
+                toast.success('A text element has been updated!');
+                fetchCampaignData();
+            })
+            // ✅ END: ADD THIS NEW LISTENER
             .on('postgres_changes', { event: '*', schema: 'public', table: 'campaign_influencer_tips', filter: `campaign_id=eq.${campaignId}` }, () => {
                 toast.success('Influencer list has been updated!');
                 fetchCampaignData();

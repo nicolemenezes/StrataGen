@@ -219,22 +219,35 @@ export const updateCopyContent = async (req, res) => {
   }
 
   try {
-    // Verify ownership before updating
-    const { data: copyData, error: ownerError } = await supabase
+    // ✅ START: REVISED OWNERSHIP CHECK
+    // First, get the copy and its parent campaign ID.
+    const { data: copy, error: fetchError } = await supabase
       .from('copies')
-      .select('campaigns!inner(user_id)')
+      .select('campaign_id')
       .eq('id', copyId)
-      .eq('campaigns.user_id', userId)
       .single();
 
-    if (ownerError || !copyData) {
-      return res.status(404).json({ message: "Copy not found or you do not have access." });
+    if (fetchError || !copy) {
+      return res.status(404).json({ message: "Copy not found." });
     }
 
-    // Perform the update
+    // Next, verify the user owns the parent campaign.
+    const { data: campaign, error: ownerError } = await supabase
+      .from('campaigns')
+      .select('id')
+      .eq('id', copy.campaign_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (ownerError || !campaign) {
+      return res.status(403).json({ message: "You do not have access to edit this content." });
+    }
+    // ✅ END: REVISED OWNERSHIP CHECK
+
+    // If the checks pass, perform the update.
     const { error: updateError } = await supabase
       .from('copies')
-      .update({ content, updated_at: new Date() }) // Assuming you add an updated_at to copies
+      .update({ content, updated_at: new Date() })
       .eq('id', copyId);
 
     if (updateError) throw updateError;
@@ -247,6 +260,7 @@ export const updateCopyContent = async (req, res) => {
 };
 
 
+// ✅ NEW CONTROLLER FUNCTION (FEATURE 2: AI COMMAND BAR)
 // ✅ NEW CONTROLLER FUNCTION (FEATURE 2: AI COMMAND BAR)
 export const handleCommand = async (req, res) => {
   const { campaignId } = req.params;
@@ -289,7 +303,6 @@ export const handleCommand = async (req, res) => {
         break;
       }
       
-      // ✅ START: MODIFICATION FOR COPY REGENERATION
       case 'regenerate_copy': {
         const { day, type, feedback } = actionJson.params;
         const originalCopy = campaign.copies.find(c => c.metadata.day === day && c.type === type);
@@ -305,26 +318,42 @@ export const handleCommand = async (req, res) => {
             content: newContent,
             metadata: { ...originalCopy.metadata, feedback, regenerated_from: originalCopy.id }
         });
-        // This is a direct update instead of a task, assuming it's fast.
-        // If it were slow, we would queue a 'copy_generate' task instead.
         break;
       }
-      // ✅ END: MODIFICATION FOR COPY REGENERATION
 
       case 'regenerate_influencers': {
-         const { feedback } = actionJson.params;
-         const newQuery = `Original influencer query was: "${campaign.strategy.influencer_query}". New request is: "${feedback}". Create an optimized search query for finding these new influencers.`;
-         const newInfluencerQuery = await generateChatResponse(newQuery);
+        const { feedback } = actionJson.params;
 
-         await supabase.from('tasks').insert({
-            campaign_id: campaignId,
-            type: 'influencer_search',
-            status: 'pending',
-            meta: { query: newInfluencerQuery, theme: campaign.strategy.theme }
-         });
-         // Also clear old tips
-         await supabase.from('campaign_influencer_tips').delete().eq('campaign_id', campaignId);
-         break;
+        // ✅ START: CORRECTED PROMPT FOR INFLUENCER REGENERATION
+        const newQueryPrompt = `
+            You are an AI assistant that generates a single, concise search query string.
+            An original search query for influencers was: "${campaign.strategy.influencer_query}".
+            The user has new feedback: "${feedback}".
+            
+            Your Task: Create a new, single-line search query string optimized for an API like Serper.ai based on the feedback.
+
+            ABSOLUTE RULES:
+            1. Your ENTIRE response MUST be ONLY the single search query string.
+            2. DO NOT include any explanations, markdown, formatting, or introductory text like "Here is the query:".
+            3. The query must be short and effective for a web search API.
+
+            Example:
+            Feedback: "find me food bloggers in New York"
+            Your Output:
+            food bloggers in New York City instagram
+        `;
+        const newInfluencerQuery = await generateChatResponse(newQueryPrompt);
+        // ✅ END: CORRECTED PROMPT
+
+        await supabase.from('tasks').insert({
+          campaign_id: campaignId,
+          type: 'influencer_search',
+          status: 'pending',
+          meta: { query: newInfluencerQuery, theme: campaign.strategy.theme }
+        });
+        // Also clear old tips
+        await supabase.from('campaign_influencer_tips').delete().eq('campaign_id', campaignId);
+        break;
       }
 
       default:
