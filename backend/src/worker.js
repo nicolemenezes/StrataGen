@@ -4,29 +4,32 @@ import { generateChatResponse, generateJsonContent } from './services/geminiServ
 import { generateImage } from './services/imageService.js';
 import { searchInfluencers } from './services/serperService.js';
 
-const POLLING_INTERVAL = 5000; // Check for new tasks every 5 seconds
+const POLLING_INTERVAL = 5000;
 
 /**
- * The main loop of the worker. Fetches and processes pending tasks.
+ * The main loop of the worker. Atomically fetches and processes pending tasks.
  */
 async function processTasks() {
   console.log('🔎 Checking for pending tasks...');
+
+  // --- START: ROBUST FETCH LOGIC ---
+  // 1. Atomically fetch and lock a batch of pending tasks using the DB function
   const { data: tasks, error: fetchError } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('status', 'pending')
-    .limit(5);
+    .rpc('fetch_and_lock_tasks', { limit_count: 5 });
+  // --- END: ROBUST FETCH LOGIC ---
 
   if (fetchError) {
     console.error('Error fetching tasks:', fetchError);
     return;
   }
-  if (tasks.length === 0) return;
+  if (tasks.length === 0) {
+    return;
+  }
 
-  console.log(`- Found ${tasks.length} pending tasks. Starting processing...`);
+  console.log(`- Found and locked ${tasks.length} tasks. Starting processing...`);
 
   for (const task of tasks) {
-    await supabase.from('tasks').update({ status: 'in_progress', started_at: new Date() }).eq('id', task.id);
+    // The tasks are already marked as 'in_progress' by the RPC function.
     try {
       console.log(`  - Processing task ${task.id} (Type: ${task.type})`);
       switch (task.type) {
@@ -42,11 +45,21 @@ async function processTasks() {
         default:
           throw new Error(`Unknown task type: ${task.type}`);
       }
-      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date() }).eq('id', task.id);
+      
+      // Mark the task as completed
+      await supabase
+        .from('tasks')
+        .update({ status: 'completed', completed_at: new Date() })
+        .eq('id', task.id);
+      
       console.log(`  - ✅ Task ${task.id} completed successfully.`);
     } catch (err) {
+      // If an error occurs, mark the task as failed
       console.error(`  - ❌ Error processing task ${task.id}:`, err.message);
-      await supabase.from('tasks').update({ status: 'failed', error_message: err.message, completed_at: new Date() }).eq('id', task.id);
+      await supabase
+        .from('tasks')
+        .update({ status: 'failed', error_message: err.message, completed_at: new Date() })
+        .eq('id', task.id);
     }
   }
 }
