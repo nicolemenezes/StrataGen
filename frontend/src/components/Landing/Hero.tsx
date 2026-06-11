@@ -3,9 +3,11 @@ import { Hero } from "@/components/ui/animated-hero";
 
 function HeroDemo(): React.JSX.Element {
   return (
-    <div className="block">
-      <Hero />
-    </div>
+    <section id="hero" className="w-full">
+      <div className="block">
+        <Hero />
+      </div>
+    </section>
   );
 }
 

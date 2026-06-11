@@ -2,7 +2,7 @@
 import { Logos3 } from "@/components/blocks/logos3";
 
 const demoData = {
-  heading: "Trusted by these companies",
+  heading: "    Trusted by these companies",
   logos: [
     {
       id: "logo-1",

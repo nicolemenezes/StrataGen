@@ -4,9 +4,11 @@ import { Feature } from "@/components/ui/feature";
 
 function FeatureDemo(): React.JSX.Element {
   return (
-    <div className="block mx-4 md:mx-12 lg:mx-32">
-      <Feature />
-    </div>
+    <section id="how-it-works" className="w-full">
+      <div className="block mx-4 md:mx-12 lg:mx-32">
+        <Feature />
+      </div>
+    </section>
   );
 }
 

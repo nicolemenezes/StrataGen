@@ -7,8 +7,8 @@ export function CTADemo() {
       badge={{
         text: "Get started",
       }}
-      title="Start building with Launch UI"
-      description="Get started with Launch UI and build your landing page in no time"
+      title="Start building with Stratagen"
+      description="Get started with Stratagen and build your campaign plan in no time"
       action={{
         text: "Get Started",
         href: "/docs",

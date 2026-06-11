@@ -3,10 +3,9 @@ import { FeaturesSectionWithHoverEffects } from "@/components/ui/feature-section
 
 function FeaturesSectionWithHoverEffectsDemo() {
   return (
-    // Use normal flow and spacing so this appears below previous sections
-    <div className="w-full py-16">
+    <section id="benefits" className="w-full py-16">
       <FeaturesSectionWithHoverEffects />
-    </div>
+    </section>
   );
 }
 
