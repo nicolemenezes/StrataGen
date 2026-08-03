@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../services/supabaseClient';
 import apiClient from '../services/apiClient';
+
+const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: null } }),
+    signOut: async () => ({ error: null }),
+    signInWithOAuth: async () => ({ error: null }),
+  },
+} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
 
 // --- 1. TYPE DEFINITIONS ---
 

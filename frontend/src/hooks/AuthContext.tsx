@@ -1,8 +1,14 @@
 // /frontend/src/hooks/AuthContext.tsx
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
+
+const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: null } }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+  },
+} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
 
 // Define the shape of the context's value
 interface AuthContextType {

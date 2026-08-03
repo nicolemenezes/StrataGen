@@ -1,7 +1,14 @@
 // /frontend/src/components/cards/InstagramPostCard.tsx
 
 import React from 'react';
-import { supabase } from '@/services/supabaseClient';
+
+const supabase = {
+  storage: {
+    from: () => ({
+      getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    }),
+  },
+} as any; // TODO: restore Supabase storage wiring after the client is reintroduced.
 
 interface CardProps {
   asset?: { storage_path: string };

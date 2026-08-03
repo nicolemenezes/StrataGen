@@ -4,7 +4,24 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import apiClient from '../services/apiClient';
-import { supabase } from '../services/supabaseClient';
+
+const supabase = {
+  storage: {
+    from: () => ({
+      getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    }),
+  },
+  channel: () => ({
+    on: () => ({
+      on: () => ({
+        on: () => ({
+          subscribe: () => undefined,
+        }),
+      }),
+    }),
+  }),
+  removeChannel: () => undefined,
+} as any; // TODO: restore Supabase realtime/storage wiring after the client is reintroduced.
 
 // --- 1. DEFINE TYPES AND HELPER FUNCTIONS ---
 

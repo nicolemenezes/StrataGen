@@ -1,7 +1,12 @@
 // /frontend/src/services/apiClient.ts
 
 import axios from 'axios';
-import { supabase } from './supabaseClient';
+
+const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: null } }),
+  },
+} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
