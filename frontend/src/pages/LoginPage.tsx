@@ -4,13 +4,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/AuthContext';
-
-const supabase = {
-  auth: {
-    signInWithPassword: async () => ({ error: null }),
-    signUp: async () => ({ error: null }),
-  },
-} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
+import { signIn, signUp } from '../services/api/authApi';
 
 // (modalStyles remain the same)
 const modalStyles = {
@@ -41,7 +35,7 @@ const LoginPage = () => {
   }, [user, navigate]);
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await signIn({ email, password });
     if (error) {
       toast.error(error.message);
     } else {
@@ -58,7 +52,7 @@ const LoginPage = () => {
     }
     
     // 👇 2. Add the `options.data` object to the signUp call
-    const { error } = await supabase.auth.signUp({
+    const { error } = await signUp({
       email,
       password,
       options: {

@@ -1,14 +1,7 @@
 // /frontend/src/components/cards/InstagramPostCard.tsx
 
 import React from 'react';
-
-const supabase = {
-  storage: {
-    from: () => ({
-      getPublicUrl: () => ({ data: { publicUrl: '' } }),
-    }),
-  },
-} as any; // TODO: restore Supabase storage wiring after the client is reintroduced.
+import { getImageUrl } from '../../services/api/imageApi';
 
 interface CardProps {
   asset?: { storage_path: string };
@@ -16,10 +9,7 @@ interface CardProps {
 }
 
 export const InstagramPostCard: React.FC<CardProps> = ({ asset, copy }) => {
-  // Construct the public URL for the image from Supabase Storage
-  const imageUrl = asset 
-    ? supabase.storage.from('assets').getPublicUrl(asset.storage_path).data.publicUrl 
-    : null;
+  const imageUrl = asset ? getImageUrl(asset.storage_path) : null;
 
   return (
     <div className="border rounded-lg overflow-hidden max-w-lg mx-auto">

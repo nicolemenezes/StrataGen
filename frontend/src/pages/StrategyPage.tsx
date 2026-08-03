@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import apiClient from '../services/apiClient';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { getCampaignChat, strategizeAndChat, continueCampaignChat, approveCampaign } from '../services/api/campaignApi';
 
 // Define types for our state
 interface ChatMessage {
@@ -64,7 +64,7 @@ const StrategyPage = () => {
     const fetchHistory = async () => {
       if (existingCampaignId) {
         try {
-          const response = await apiClient.get<ChatMessage[]>(`/api/campaigns/${existingCampaignId}/chat`);
+          const response = await getCampaignChat(existingCampaignId);
           setMessages(response.data);
         } catch (error) {
           toast.error("Could not load chat history.");
@@ -96,8 +96,7 @@ const StrategyPage = () => {
     setInputValue('');
 
     try {
-      // Use the new, more efficient single endpoint
-      const response = await apiClient.post('/api/campaigns/strategize-and-chat', {
+      const response = await strategizeAndChat({
         title: 'New Campaign Strategy', // This could be taken from a form field in the future
         brief: inputValue,
       });
@@ -128,7 +127,7 @@ const StrategyPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post(`/api/campaigns/${campaignId}/chat`, {
+      const response = await continueCampaignChat(campaignId, inputValue);
         message: inputValue,
       });
       setMessages(prev => [...prev, { role: 'assistant' as const, content: response.data.reply }]);
@@ -143,7 +142,7 @@ const StrategyPage = () => {
   // Handles the final approval of the strategy
   const handleApprove = async () => {
     if (!campaignId) return;
-    const approvalPromise = apiClient.post(`/api/campaigns/${campaignId}/approve`);
+    const approvalPromise = approveCampaign(campaignId);
     toast.promise(approvalPromise, {
       loading: 'Finalizing strategy and creating plan...',
       success: () => {

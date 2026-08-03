@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import apiClient from '../services/apiClient';
-
-const supabase = {
-  auth: {
-    getSession: async () => ({ data: { session: null } }),
-    signOut: async () => ({ error: null }),
-    signInWithOAuth: async () => ({ error: null }),
-  },
-} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
+import { getSession, signOut } from '../services/api/authApi';
+import { connectLinkedIn, connectInstagram, getSocialConnections } from '../services/api/socialApi';
+import { getCampaigns, runCampaign } from '../services/api/campaignApi';
 
 // --- 1. TYPE DEFINITIONS ---
 
@@ -82,17 +76,15 @@ const DashboardPage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSession();
         if (!session) {
           navigate('/login');
           return;
         }
         setUserEmail(session.user.email || null);
-        
-        // TODO: In a real app, fetch connection status from your backend/profiles table
-        // For now, we'll check if a provider token exists in the session
-        const hasLinkedIn = session.provider_token; // Simplistic check
-        setSocialConnections({ linkedin: !!hasLinkedIn, instagram: false /* Instagram needs a custom check */ });
+
+        const connections = await getSocialConnections();
+        setSocialConnections(connections.data);
 
       } catch (error) {
         toast.error("Could not verify user session.");
@@ -103,7 +95,7 @@ const DashboardPage = () => {
     const fetchCampaigns = async () => {
       setIsLoading(true);
       try {
-        const response = await apiClient.get<CampaignSummary[]>('/api/campaigns');
+        const response = await getCampaigns();
         // Sort campaigns by most recently created
         const sortedCampaigns = response.data.sort((a, b) => 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -123,26 +115,13 @@ const DashboardPage = () => {
   // --- Event Handlers ---
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate('/login');
   };
-  
-  /**
-   * NOTE: For OAuth to work, you must configure the LinkedIn Provider
-   * in your Supabase project settings (Authentication -> Providers).
-   */
+
   const handleConnectLinkedIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'linkedin',
-      options: {
-        // This scope is required to post on behalf of the user
-        scopes: 'w_member_social',
-        redirectTo: window.location.origin + '/dashboard' // Redirect back here after auth
-      }
-    });
-    if (error) {
-      toast.error(`LinkedIn connection failed: ${error.message}`);
-    }
+    await connectLinkedIn();
+    toast.success('LinkedIn connected in mock mode.');
   };
 
   /**
@@ -150,9 +129,8 @@ const DashboardPage = () => {
    * This function is a placeholder for that interaction.
    */
   const handleConnectInstagram = () => {
-    toast('Instagram connection requires a custom setup via the Facebook Graph API.', { icon: 'ℹ️' });
-    // In a real app, this would likely open a popup to your own backend endpoint:
-    // window.open('http://localhost:3001/api/auth/instagram', '_blank');
+    connectInstagram();
+    toast('Instagram connection is mocked for now.', { icon: 'ℹ️' });
   };
 
   /**
@@ -165,10 +143,7 @@ const DashboardPage = () => {
 
     try {
       toast.loading('Starting campaign...', { id: 'run-campaign' });
-      // This API endpoint would be responsible for:
-      // 1. Changing the campaign status to 'in_progress'.
-      // 2. Creating all the necessary records in the 'auto_posts' table.
-      await apiClient.post(`/api/campaigns/${campaignId}/run`);
+      await runCampaign(campaignId);
       
       toast.success('Campaign is now in progress! Posts are being scheduled.', { id: 'run-campaign' });
       

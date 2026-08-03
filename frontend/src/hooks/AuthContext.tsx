@@ -2,13 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-
-const supabase = {
-  auth: {
-    getSession: async () => ({ data: { session: null } }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
-  },
-} as any; // TODO: restore Supabase auth wiring after the client is reintroduced.
+import { getSession, onAuthStateChange } from '../services/api/authApi';
 
 // Define the shape of the context's value
 interface AuthContextType {
@@ -33,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Check for an active session on initial load
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -42,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getInitialSession();
 
     // Listen for auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = onAuthStateChange(
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);

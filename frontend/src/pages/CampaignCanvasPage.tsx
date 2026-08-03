@@ -3,25 +3,8 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import apiClient from '../services/apiClient';
-
-const supabase = {
-  storage: {
-    from: () => ({
-      getPublicUrl: () => ({ data: { publicUrl: '' } }),
-    }),
-  },
-  channel: () => ({
-    on: () => ({
-      on: () => ({
-        on: () => ({
-          subscribe: () => undefined,
-        }),
-      }),
-    }),
-  }),
-  removeChannel: () => undefined,
-} as any; // TODO: restore Supabase realtime/storage wiring after the client is reintroduced.
+import { getCampaignById, updateCampaignCopy, sendCampaignCommand } from '../services/api/campaignApi';
+import { getImageUrl } from '../services/api/imageApi';
 
 // --- 1. DEFINE TYPES AND HELPER FUNCTIONS ---
 
@@ -68,7 +51,7 @@ interface CampaignData { id: string; title: string; strategy: any; assets: Asset
 // --- 2. DEFINE INTERNAL UI COMPONENTS (WITH EDITING CAPABILITIES) ---
 
 const InstagramPostCard: React.FC<{ asset?: Asset; copy?: Copy; onUpdate: (copyId: string, newContent: string) => Promise<void>; }> = ({ asset, copy, onUpdate }) => {
-  const imageUrl = asset ? supabase.storage.from('assets').getPublicUrl(asset.storage_path).data.publicUrl : null;
+  const imageUrl = asset ? getImageUrl(asset.storage_path) : null;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(copy?.content || '');
@@ -221,7 +204,7 @@ const CampaignCanvasPage = () => {
     const fetchCampaignData = async () => {
         if (!campaignId) return;
         try {
-            const response = await apiClient.get<CampaignData>(`/api/campaigns/${campaignId}`);
+        const response = await getCampaignById(campaignId);
             setCampaignData(response.data);
         } catch (error) {
             toast.error("Could not load campaign data.");
@@ -233,31 +216,13 @@ const CampaignCanvasPage = () => {
     useEffect(() => {
         setIsLoading(true);
         fetchCampaignData();
-        
-        const channel = supabase.channel(`campaign-updates:${campaignId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'assets', filter: `campaign_id=eq.${campaignId}` }, () => {
-                toast.success('An image has been updated!');
-                fetchCampaignData();
-            })
-            // ✅ START: ADD THIS NEW LISTENER
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'copies', filter: `campaign_id=eq.${campaignId}` }, (payload) => {
-                console.log('Copy change received!', payload);
-                toast.success('A text element has been updated!');
-                fetchCampaignData();
-            })
-            // ✅ END: ADD THIS NEW LISTENER
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'campaign_influencer_tips', filter: `campaign_id=eq.${campaignId}` }, () => {
-                toast.success('Influencer list has been updated!');
-                fetchCampaignData();
-            })
-            .subscribe();
-        
-        return () => { supabase.removeChannel(channel); };
+
+      return () => undefined;
     }, [campaignId]);
 
     const handleContentUpdate = async (copyId: string, newContent: string) => {
         try {
-            await apiClient.put(`/api/copies/${copyId}`, { content: newContent });
+        await updateCampaignCopy(copyId, newContent);
             toast.success("Content saved!");
             setCampaignData(prev => prev ? ({ ...prev, copies: prev.copies.map(c => c.id === copyId ? { ...c, content: newContent } : c) }) : null);
         } catch (error) {
@@ -271,7 +236,7 @@ const CampaignCanvasPage = () => {
         if (!commandInput.trim() || !campaignId) return;
         setIsCommandLoading(true);
         try {
-            await apiClient.post(`/api/campaigns/${campaignId}/command`, { prompt: commandInput });
+          await sendCampaignCommand(campaignId, commandInput);
             toast.success('Regeneration task is queued! The canvas will update automatically.');
             setCommandInput('');
         } catch (error: any) {
