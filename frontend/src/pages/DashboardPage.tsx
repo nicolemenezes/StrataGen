@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { getSession, signOut } from '../services/api/authApi';
+import { UserCircle2, LogOut } from 'lucide-react';
+import { useAuth } from '../hooks/AuthContext';
+import { signOut } from '../services/api/authApi';
 import { connectLinkedIn, connectInstagram, getSocialConnections } from '../services/api/socialApi';
 import { getCampaigns, runCampaign } from '../services/api/campaignApi';
 
@@ -11,7 +13,7 @@ import { getCampaigns, runCampaign } from '../services/api/campaignApi';
 interface CampaignSummary {
   id: string;
   title: string;
-  status: 'strategy_draft' | 'strategy_approved' | 'in_progress' | 'completed' | 'failed';
+  status: 'Draft' | 'Generating' | 'Ready' | 'Scheduled' | 'Published';
   created_at: string;
 }
 
@@ -40,14 +42,14 @@ const formatDate = (dateString: string) => {
  */
 const CampaignStatusBadge: React.FC<{ status: CampaignSummary['status'] }> = ({ status }) => {
   const statusStyles = {
-    strategy_draft: { text: 'Draft', color: 'bg-gray-200 text-gray-800' },
-    strategy_approved: { text: 'Approved', color: 'bg-blue-200 text-blue-800' },
-    in_progress: { text: 'In Progress', color: 'bg-green-200 text-green-800' },
-    completed: { text: 'Completed', color: 'bg-purple-200 text-purple-800' },
-    failed: { text: 'Failed', color: 'bg-red-200 text-red-800' },
+    Draft: { text: 'Draft', color: 'bg-gray-200 text-gray-800' },
+    Generating: { text: 'Generating', color: 'bg-amber-200 text-amber-800' },
+    Ready: { text: 'Ready', color: 'bg-blue-200 text-blue-800' },
+    Scheduled: { text: 'Scheduled', color: 'bg-green-200 text-green-800' },
+    Published: { text: 'Published', color: 'bg-purple-200 text-purple-800' },
   };
 
-  const { text, color } = statusStyles[status] || statusStyles.strategy_draft;
+  const { text, color } = statusStyles[status] || statusStyles.Draft;
 
   return (
     <span className={`px-3 py-1 text-xs font-medium rounded-full ${color}`}>
@@ -61,9 +63,11 @@ const CampaignStatusBadge: React.FC<{ status: CampaignSummary['status'] }> = ({ 
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   // In a real app, this would be fetched from your database
   const [socialConnections, setSocialConnections] = useState<SocialConnections>({
@@ -76,19 +80,10 @@ const DashboardPage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: { session } } = await getSession();
-        if (!session) {
-          navigate('/login');
-          return;
-        }
-        setUserEmail(session.user.email || null);
-
         const connections = await getSocialConnections();
         setSocialConnections(connections.data);
-
       } catch (error) {
-        toast.error("Could not verify user session.");
-        navigate('/login');
+        toast.error('Could not load account data.');
       }
     };
 
@@ -112,16 +107,28 @@ const DashboardPage = () => {
     fetchCampaigns();
   }, [navigate]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // --- Event Handlers ---
 
   const handleLogout = async () => {
     await signOut();
+    setIsUserMenuOpen(false);
     navigate('/login');
   };
 
   const handleConnectLinkedIn = async () => {
     await connectLinkedIn();
-    toast.success('LinkedIn connected in mock mode.');
+    toast('LinkedIn connection will be available in a later phase.', { icon: 'ℹ️' });
   };
 
   /**
@@ -130,7 +137,7 @@ const DashboardPage = () => {
    */
   const handleConnectInstagram = () => {
     connectInstagram();
-    toast('Instagram connection is mocked for now.', { icon: 'ℹ️' });
+    toast('Instagram connection will be available in a later phase.', { icon: 'ℹ️' });
   };
 
   /**
@@ -148,7 +155,7 @@ const DashboardPage = () => {
       toast.success('Campaign is now in progress! Posts are being scheduled.', { id: 'run-campaign' });
       
       // Refresh the campaign list to show the new status
-      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: 'in_progress' } : c));
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: 'Generating' } : c));
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to start campaign.', { id: 'run-campaign' });
     }
@@ -168,14 +175,35 @@ const DashboardPage = () => {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Welcome back, {userEmail || 'User'}</p>
+            <p className="text-gray-600 mt-1">Welcome, {user?.fullName || 'User'}</p>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm font-semibold bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
-          >
-            Logout
-          </button>
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white shadow-sm hover:bg-gray-50"
+              aria-label="Open user menu"
+            >
+              <UserCircle2 className="h-6 w-6 text-gray-700" />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="absolute right-0 top-14 z-20 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+                <div className="border-b border-gray-100 pb-3">
+                  <p className="text-sm font-semibold text-gray-900">{user?.fullName || 'User'}</p>
+                  <p className="text-xs text-gray-500 break-all">{user?.email || 'No email available'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="mt-3 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* --- Integrations Panel --- */}
@@ -251,7 +279,7 @@ const DashboardPage = () => {
                 <h3 className="text-lg font-medium text-gray-800">No campaigns yet!</h3>
                 <p className="text-sm text-gray-500 mt-1">Get started by creating your first campaign.</p>
                 <button
-                  onClick={() => navigate('/')} // Navigate to your campaign creation page
+                  onClick={() => navigate('/strategy')}
                   className="mt-4 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700"
                 >
                   Create New Campaign

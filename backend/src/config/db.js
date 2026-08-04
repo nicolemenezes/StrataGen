@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import User from '../models/User.js';
 
 export const connectDB = async () => {
   const mongoUri = process.env.MONGODB_URI;
@@ -8,5 +9,6 @@ export const connectDB = async () => {
   }
 
   await mongoose.connect(mongoUri);
+  await User.syncIndexes();
   console.log('MongoDB connected.');
 };

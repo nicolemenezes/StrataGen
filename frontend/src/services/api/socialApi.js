@@ -1,11 +1,5 @@
-const BACKEND_NOT_IMPLEMENTED_ERROR = 'Backend not implemented.';
-
-function notImplemented() {
-  return { error: null };
-}
-
 export async function getSocialConnections() {
-  return { data: { linkedin: true, instagram: false } };
+  return { data: { linkedin: false, instagram: false } };
 }
 
 export async function connectLinkedIn() {

@@ -1,13 +1,31 @@
 // /frontend/src/hooks/AuthContext.tsx
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange } from '../services/api/authApi';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  profilePicture?: string | null;
+  role?: string;
+}
+
+interface AuthSession {
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    user_metadata?: {
+      full_name?: string;
+    };
+  };
+}
 
 // Define the shape of the context's value
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: AuthSession | null;
   isLoading: boolean;
 }
 
@@ -20,8 +38,8 @@ const AuthContext = createContext<AuthContextType>({
 
 // Create the provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +47,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const getInitialSession = async () => {
       const { data: { session } } = await getSession();
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            fullName: session.user.user_metadata?.full_name || session.user.email,
+          }
+        : null);
       setIsLoading(false);
     };
 
@@ -39,7 +63,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        setUser(session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email,
+              fullName: session.user.user_metadata?.full_name || session.user.email,
+            }
+          : null);
         setIsLoading(false);
       }
     );

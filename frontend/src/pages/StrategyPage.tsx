@@ -128,8 +128,6 @@ const StrategyPage = () => {
 
     try {
       const response = await continueCampaignChat(campaignId, inputValue);
-        message: inputValue,
-      });
       setMessages(prev => [...prev, { role: 'assistant' as const, content: response.data.reply }]);
     } catch (err) {
       toast.error('Failed to get response.');

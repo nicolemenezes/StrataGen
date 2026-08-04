@@ -1,7 +1,7 @@
 // /frontend/src/pages/LoginPage.tsx
 
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/AuthContext';
 import { signIn, signUp } from '../services/api/authApi';
@@ -20,10 +20,11 @@ const modalStyles = {
 
 
 const LoginPage = () => {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<'login' | 'register'>(searchParams.get('mode') === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState(''); // 👈 1. Add state for the full name
+  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -34,39 +35,38 @@ const LoginPage = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const nextMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+    setMode(nextMode);
+  }, [searchParams]);
+
   const handleLogin = async () => {
-    const { error } = await signIn({ email, password });
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await signIn({ email, password });
       toast.success('Logged in successfully!');
       navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Login failed.');
     }
   };
 
   const handleSignUp = async () => {
-    // Basic validation
     if (!fullName.trim()) {
         toast.error("Please enter your full name.");
         return;
     }
-    
-    // 👇 2. Add the `options.data` object to the signUp call
-    const { error } = await signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        }
-      }
-    });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Account created! Please check your email to verify.');
-      setMode('login');
+    try {
+      await signUp({
+        email,
+        password,
+        fullName,
+      });
+
+      toast.success('Account created successfully!');
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Registration failed.');
     }
   };
 
@@ -87,7 +87,7 @@ const LoginPage = () => {
     <div style={modalStyles.container}>
       <div style={modalStyles.modal}>
         <h2 style={modalStyles.title}>
-          {mode === 'login' ? 'Welcome Back' : 'Create an Account'}
+          {mode === 'login' ? 'Sign In' : 'Sign Up'}
         </h2>
         <form onSubmit={handleSubmit}>
           {/* 👇 3. Conditionally render the Full Name input */}
@@ -132,7 +132,7 @@ const LoginPage = () => {
         <p style={modalStyles.toggle}>
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <span onClick={() => setMode(mode === 'login' ? 'register' : 'login')} style={modalStyles.toggleLink}>
-            {mode === 'login' ? 'Register' : 'Login'}
+            {mode === 'login' ? 'Sign Up' : 'Sign In'}
           </span>
         </p>
       </div>

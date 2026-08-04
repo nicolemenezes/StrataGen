@@ -23,12 +23,12 @@ const Navbar = () => {
 
   const handleSignIn = () => {
     // Navigate to LoginPage
-    navigate("/login");
+    navigate("/login?mode=login");
   };
 
   const handleSignUp = () => {
     // Navigate to LoginPage (you can create separate signup page if needed)
-    navigate("/login");
+    navigate("/login?mode=register");
   };
 
   return (
