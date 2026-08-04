@@ -261,7 +261,7 @@ const DashboardPage = () => {
                       >
                         View Canvas
                       </button>
-                      {campaign.status === 'strategy_approved' && (
+                      {campaign.status === 'Ready' && (
                         <button 
                           onClick={() => handleRunCampaign(campaign.id)}
                           disabled={!socialConnections.linkedin} // Example: disable if not connected
