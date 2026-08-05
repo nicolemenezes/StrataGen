@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEFAULT_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const DEFAULT_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000';
 const AUTH_STORAGE_KEY = 'stratagen.auth';
 
 const getAuthToken = () => {

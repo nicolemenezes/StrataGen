@@ -1,30 +1,39 @@
-const BACKEND_NOT_IMPLEMENTED_ERROR = 'Backend not implemented.';
+import apiClient from '../../api/apiClient.js';
 
-function notImplemented() {
-  throw new Error(BACKEND_NOT_IMPLEMENTED_ERROR);
+export async function generateCampaign(campaignDetails) {
+  const response = await apiClient.post('/api/ai/generate-campaign', {
+    campaignDetails,
+  });
+
+  return {
+    data: {
+      result: response.data?.data?.result ?? '',
+    },
+  };
 }
 
-export function generateStrategy() {
-  notImplemented();
+export async function generateStrategy(campaignDetails) {
+  return generateCampaign(campaignDetails);
 }
 
-export function generateCaption() {
-  notImplemented();
+export async function generateCaption(campaignDetails) {
+  return generateCampaign(campaignDetails);
 }
 
-export function generateBlogTitle() {
-  notImplemented();
+export async function generateBlogTitle(campaignDetails) {
+  return generateCampaign(campaignDetails);
 }
 
-export function generateBlogBody() {
-  notImplemented();
+export async function generateBlogBody(campaignDetails) {
+  return generateCampaign(campaignDetails);
 }
 
-export function generateCopy() {
-  notImplemented();
+export async function generateCopy(campaignDetails) {
+  return generateCampaign(campaignDetails);
 }
 
 const aiApi = {
+  generateCampaign,
   generateStrategy,
   generateCaption,
   generateBlogTitle,

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { getSession } from './api/authApi';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env?.VITE_API_BASE_URL,
 });
 
 // Axios interceptor reserved for future auth wiring.
