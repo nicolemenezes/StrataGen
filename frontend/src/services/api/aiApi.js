@@ -6,9 +6,7 @@ export async function generateCampaign(campaignDetails) {
   });
 
   return {
-    data: {
-      result: response.data?.data?.result ?? '',
-    },
+    data: response.data,
   };
 }
 
