@@ -205,7 +205,7 @@ const CampaignCanvasPage = () => {
         if (!campaignId) return;
         try {
         const response = await getCampaignById(campaignId);
-            setCampaignData(response.data);
+            setCampaignData(response.data.data.campaign);
         } catch (error) {
             toast.error("Could not load campaign data.");
         } finally {

@@ -4,10 +4,20 @@ import { toast } from 'react-hot-toast';
 import { getCampaignById, updateCampaignById } from '../services/api/campaignApi';
 import { generateCampaign, refineCampaignPlan } from '../services/api/aiApi';
 
-interface CampaignPlan {
-  campaignName?: string;
+interface CampaignRecord {
+  _id: string;
+  title: string;
+  companyName: string;
+  industry?: string;
+  description?: string;
   campaignSummary?: string;
-  targetAudience?: string;
+  targetAudience: string;
+  campaignGoal?: string;
+  platforms?: string[];
+  budget?: number;
+  status: 'Draft' | 'Generating' | 'Ready' | 'Scheduled' | 'Published';
+  createdAt: string;
+  sourcePrompt?: string;
   brandTone?: string;
   marketingGoals?: string[];
   contentCalendar?: Array<Record<string, unknown>>;
@@ -16,25 +26,9 @@ interface CampaignPlan {
   imagePrompts?: string[];
 }
 
-interface CampaignRecord {
-  _id: string;
-  title: string;
-  companyName: string;
-  industry?: string;
-  description?: string;
-  targetAudience: string;
-  campaignGoal?: string;
-  platforms?: string[];
-  budget?: number;
-  status: 'Draft' | 'Generating' | 'Ready' | 'Scheduled' | 'Published';
-  createdAt: string;
-  sourcePrompt?: string;
-  aiOutput?: CampaignPlan;
-}
-
 interface WorkspaceDraft {
   campaignName: string;
-  summary: string;
+  campaignSummary: string;
   targetAudience: string;
   brandTone: string;
   marketingGoals: string[];
@@ -45,7 +39,7 @@ interface WorkspaceDraft {
 
 const emptyDraft = (): WorkspaceDraft => ({
   campaignName: '',
-  summary: '',
+  campaignSummary: '',
   targetAudience: '',
   brandTone: '',
   marketingGoals: [],
@@ -79,67 +73,59 @@ const normalizeCampaignPlan = (campaign: CampaignRecord | null): WorkspaceDraft 
     return emptyDraft();
   }
 
-  const plan = campaign.aiOutput ?? {};
-
   return {
-    campaignName: asString(plan.campaignName) || campaign.title || '',
-    summary: asString(plan.campaignSummary) || campaign.description || '',
-    targetAudience: asString(plan.targetAudience) || campaign.targetAudience || '',
-    brandTone: asString(plan.brandTone),
-    marketingGoals: asStringArray(plan.marketingGoals),
-    contentCalendar: asObjectArray(plan.contentCalendar).map((item) => ({
+    campaignName: asString(campaign.title) || '',
+    campaignSummary: asString(campaign.campaignSummary) || asString(campaign.description) || '',
+    targetAudience: asString(campaign.targetAudience) || '',
+    brandTone: asString(campaign.brandTone),
+    marketingGoals: asStringArray(campaign.marketingGoals),
+    contentCalendar: asObjectArray(campaign.contentCalendar).map((item) => ({
       day: asString(item.day),
       platform: asString(item.platform),
       contentType: asString(item.contentType),
       focus: asString(item.focus),
       goal: asString(item.goal),
     })),
-    captions: asObjectArray(plan.captions).map((item) => ({
+    captions: asObjectArray(campaign.captions).map((item) => ({
       platform: asString(item.platform),
       contentType: asString(item.contentType),
       caption: asString(item.caption),
     })),
-    hashtags: asStringArray(plan.hashtags),
+    hashtags: asStringArray(campaign.hashtags),
   };
 };
 
 const normalizeCampaignSnapshot = (campaign: CampaignRecord, draft: WorkspaceDraft) => ({
   ...campaign,
-  aiOutput: {
-    campaignName: draft.campaignName || campaign.title,
-    campaignSummary: draft.summary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
-    targetAudience: draft.targetAudience || campaign.targetAudience,
-    brandTone: draft.brandTone || '',
-    marketingGoals: draft.marketingGoals,
-    contentCalendar: draft.contentCalendar,
-    captions: draft.captions,
-    hashtags: draft.hashtags,
-    imagePrompts: asStringArray(campaign.aiOutput?.imagePrompts),
-  },
+  title: draft.campaignName || campaign.title,
+  campaignSummary: draft.campaignSummary || campaign.campaignSummary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
+  targetAudience: draft.targetAudience || campaign.targetAudience,
+  brandTone: draft.brandTone || '',
+  marketingGoals: draft.marketingGoals,
+  contentCalendar: draft.contentCalendar,
+  captions: draft.captions,
+  hashtags: draft.hashtags,
+  imagePrompts: campaign.imagePrompts ?? [],
 });
 
 const buildUpdatePayload = (campaign: CampaignRecord, draft: WorkspaceDraft) => ({
   title: draft.campaignName || campaign.title,
   companyName: campaign.companyName,
   industry: campaign.industry || 'General',
-  description: draft.summary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
+  description: draft.campaignSummary || campaign.campaignSummary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
+  campaignSummary: draft.campaignSummary || campaign.campaignSummary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
   targetAudience: draft.targetAudience || campaign.targetAudience,
-  campaignGoal: campaign.campaignGoal || draft.summary || campaign.description || 'Generate awareness',
+  campaignGoal: campaign.campaignGoal || draft.campaignSummary || campaign.description || 'Generate awareness',
   platforms: campaign.platforms && campaign.platforms.length > 0 ? campaign.platforms : ['General'],
   budget: typeof campaign.budget === 'number' ? campaign.budget : 0,
   status: campaign.status,
-  sourcePrompt: campaign.sourcePrompt || draft.summary || campaign.description || '',
-  aiOutput: {
-    campaignName: draft.campaignName || campaign.title,
-    campaignSummary: draft.summary || campaign.description || campaign.sourcePrompt || 'Generated campaign',
-    targetAudience: draft.targetAudience || campaign.targetAudience,
-    brandTone: draft.brandTone || '',
-    marketingGoals: draft.marketingGoals,
-    contentCalendar: draft.contentCalendar,
-    captions: draft.captions,
-    hashtags: draft.hashtags,
-    imagePrompts: asStringArray(campaign.aiOutput?.imagePrompts),
-  },
+  sourcePrompt: campaign.sourcePrompt || draft.campaignSummary || campaign.description || '',
+  brandTone: draft.brandTone || '',
+  marketingGoals: draft.marketingGoals,
+  contentCalendar: draft.contentCalendar,
+  captions: draft.captions,
+  hashtags: draft.hashtags,
+  imagePrompts: campaign.imagePrompts ?? [],
 });
 
 const SectionCard = ({ title, children }: { title: string; children: ReactNode }) => (
@@ -173,6 +159,20 @@ const StrategyPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [brief, setBrief] = useState('');
 
+  const loadCampaign = async (id?: string) => {
+    if (!id) {
+      return null;
+    }
+
+    const response = await getCampaignById(id);
+
+    if (!response.data) {
+      throw new Error('Campaign not found.');
+    }
+
+    return response.data;
+  };
+
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!campaignId) {
@@ -181,13 +181,13 @@ const StrategyPage = () => {
       }
 
       try {
-        const response = await getCampaignById(campaignId);
-        if (!response.data) {
+        const freshCampaign = await loadCampaign(campaignId);
+        if (!freshCampaign) {
           throw new Error('Campaign not found.');
         }
 
-        setCampaign(response.data);
-        setDraft(normalizeCampaignPlan(response.data));
+        setCampaign(freshCampaign);
+        setDraft(normalizeCampaignPlan(freshCampaign));
       } catch (_error) {
         toast.error('Could not load the campaign.');
         navigate('/dashboard');
@@ -260,7 +260,7 @@ const StrategyPage = () => {
 
         nextDraft = {
           campaignName: asString(refined?.campaignName) || nextDraft.campaignName,
-          summary: asString(refined?.campaignSummary) || nextDraft.summary,
+          campaignSummary: asString(refined?.campaignSummary) || nextDraft.campaignSummary,
           targetAudience: asString(refined?.targetAudience) || nextDraft.targetAudience,
           brandTone: asString(refined?.brandTone) || nextDraft.brandTone,
           marketingGoals: asStringArray(refined?.marketingGoals).length ? asStringArray(refined?.marketingGoals) : nextDraft.marketingGoals,
@@ -284,9 +284,15 @@ const StrategyPage = () => {
         };
       }
 
-      const updatedCampaign = await updateCampaignById(campaignId, buildUpdatePayload(campaign, nextDraft));
-      setCampaign(updatedCampaign);
-      setDraft(normalizeCampaignPlan(updatedCampaign));
+      await updateCampaignById(campaignId, buildUpdatePayload(campaign, nextDraft));
+
+      const freshCampaign = await loadCampaign(campaignId);
+      if (!freshCampaign) {
+        throw new Error('Campaign reload failed.');
+      }
+
+      setCampaign(freshCampaign);
+      setDraft(normalizeCampaignPlan(freshCampaign));
       setInstructions('');
       setIsEditing(false);
       toast.success('Campaign saved successfully.');
@@ -443,13 +449,13 @@ const StrategyPage = () => {
             <SectionCard title="Summary">
               {isEditing ? (
                 <textarea
-                  value={draft.summary}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))}
+                  value={draft.campaignSummary}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, campaignSummary: event.target.value }))}
                   rows={5}
                   className="mt-3 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
               ) : (
-                <p className="mt-3 text-sm leading-6 text-gray-700">{draft.summary || campaign.description || 'n/a'}</p>
+                <p className="mt-3 text-sm leading-6 text-gray-700">{draft.campaignSummary || campaign.campaignSummary || campaign.description || 'n/a'}</p>
               )}
             </SectionCard>
 

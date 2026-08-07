@@ -68,8 +68,7 @@ export const read = asyncHandler(async (req, res) => {
 
 export const update = asyncHandler(async (req, res) => {
   handleValidationErrors(req);
-  const data = matchedData(req, { locations: ['body'] });
-  const campaign = await updateCampaign(req.params.id, req.user._id, data);
+  const campaign = await updateCampaign(req.params.id, req.user._id, req.body);
 
   return sendSuccess(res, {
     statusCode: 200,

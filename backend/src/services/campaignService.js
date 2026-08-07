@@ -37,6 +37,24 @@ const normalizeObjectArray = (value) => {
   return value.filter((item) => item && typeof item === 'object' && !Array.isArray(item));
 };
 
+const getCampaignContentSource = (payload) => {
+  const source = isPlainObject(payload) ? { ...payload } : {};
+
+  if (isPlainObject(payload?.campaignPlan)) {
+    Object.assign(source, payload.campaignPlan);
+  }
+
+  if (isPlainObject(payload?.generatedCampaign)) {
+    Object.assign(source, payload.generatedCampaign);
+  }
+
+  if (isPlainObject(payload?.aiOutput)) {
+    Object.assign(source, payload.aiOutput);
+  }
+
+  return source;
+};
+
 const getCampaignPlan = (payload) => {
   if (isPlainObject(payload?.campaignPlan)) {
     return payload.campaignPlan;
@@ -59,6 +77,146 @@ const getSourceDetails = (payload) => {
   }
 
   return isPlainObject(payload) ? payload : {};
+};
+
+const normalizeCampaignFields = (payload, fallback = {}) => {
+  const source = getCampaignContentSource(payload);
+  const fallbackSource = isPlainObject(fallback) ? fallback : {};
+
+  const title = normalizeString(
+    payload?.title,
+    normalizeString(fallbackSource.title, normalizeString(source.campaignName, 'New Campaign'))
+  );
+  const campaignSummary = normalizeString(
+    payload?.campaignSummary,
+    normalizeString(
+      fallbackSource.campaignSummary,
+      normalizeString(source.campaignSummary, normalizeString(payload?.description, normalizeString(fallbackSource.description, '')))
+    )
+  );
+  const targetAudience = normalizeString(
+    payload?.targetAudience,
+    normalizeString(fallbackSource.targetAudience, normalizeString(source.targetAudience, 'General audience'))
+  );
+  const brandTone = normalizeString(payload?.brandTone, normalizeString(fallbackSource.brandTone, normalizeString(source.brandTone, '')));
+  const marketingGoals = normalizeStringArray(payload?.marketingGoals).length
+    ? normalizeStringArray(payload?.marketingGoals)
+    : normalizeStringArray(fallbackSource.marketingGoals).length
+      ? normalizeStringArray(fallbackSource.marketingGoals)
+      : normalizeStringArray(source.marketingGoals);
+  const contentCalendar = normalizeObjectArray(payload?.contentCalendar).length
+    ? normalizeObjectArray(payload?.contentCalendar)
+    : normalizeObjectArray(fallbackSource.contentCalendar).length
+      ? normalizeObjectArray(fallbackSource.contentCalendar)
+      : normalizeObjectArray(source.contentCalendar);
+  const captions = normalizeObjectArray(payload?.captions).length
+    ? normalizeObjectArray(payload?.captions)
+    : normalizeObjectArray(fallbackSource.captions).length
+      ? normalizeObjectArray(fallbackSource.captions)
+      : normalizeObjectArray(source.captions);
+  const hashtags = normalizeStringArray(payload?.hashtags).length
+    ? normalizeStringArray(payload?.hashtags)
+    : normalizeStringArray(fallbackSource.hashtags).length
+      ? normalizeStringArray(fallbackSource.hashtags)
+      : normalizeStringArray(source.hashtags);
+  const imagePrompts = normalizeStringArray(payload?.imagePrompts).length
+    ? normalizeStringArray(payload?.imagePrompts)
+    : normalizeStringArray(fallbackSource.imagePrompts).length
+      ? normalizeStringArray(fallbackSource.imagePrompts)
+      : normalizeStringArray(source.imagePrompts);
+
+  return {
+    title,
+    campaignSummary,
+    targetAudience,
+    brandTone,
+    marketingGoals,
+    contentCalendar,
+    captions,
+    hashtags,
+    imagePrompts,
+  };
+};
+
+const buildLegacyAiOutput = (campaignFields, extra = {}) => ({
+  campaignName: campaignFields.title,
+  campaignSummary: campaignFields.campaignSummary,
+  targetAudience: campaignFields.targetAudience,
+  brandTone: campaignFields.brandTone,
+  marketingGoals: campaignFields.marketingGoals,
+  contentCalendar: campaignFields.contentCalendar,
+  captions: campaignFields.captions,
+  hashtags: campaignFields.hashtags,
+  imagePrompts: campaignFields.imagePrompts,
+  ...extra,
+});
+
+const normalizeCampaignResponse = (campaignDoc) => {
+  if (!campaignDoc) {
+    return null;
+  }
+
+  const campaign = typeof campaignDoc.toObject === 'function' ? campaignDoc.toObject({ virtuals: false }) : { ...campaignDoc };
+  const aiOutput = isPlainObject(campaign.aiOutput) ? campaign.aiOutput : {};
+  const normalizedFields = normalizeCampaignFields(campaign, {
+    title: campaign.title,
+    description: campaign.description,
+    campaignSummary: campaign.campaignSummary,
+    targetAudience: campaign.targetAudience,
+    brandTone: campaign.brandTone,
+    marketingGoals: campaign.marketingGoals,
+    contentCalendar: campaign.contentCalendar,
+    captions: campaign.captions,
+    hashtags: campaign.hashtags,
+    imagePrompts: campaign.imagePrompts,
+    aiOutput,
+  });
+
+  return {
+    ...campaign,
+    ...normalizedFields,
+    aiOutput: buildLegacyAiOutput(normalizedFields, {
+      sourceDetails: aiOutput.sourceDetails || {},
+      generationModel: aiOutput.generationModel,
+      generatedAt: aiOutput.generatedAt,
+    }),
+  };
+};
+
+const normalizeCampaignUpdatePayload = (payload, fallback = {}) => {
+  if (!isPlainObject(payload)) {
+    return {};
+  }
+
+  const update = normalizeCampaignFields(payload, fallback);
+  const stringFields = ['companyName', 'industry', 'description', 'campaignGoal', 'sourcePrompt', 'status'];
+
+  stringFields.forEach((field) => {
+    if (typeof payload[field] === 'string') {
+      update[field] = payload[field].trim();
+    }
+  });
+
+  if (Array.isArray(payload.platforms)) {
+    const platforms = normalizeStringArray(payload.platforms);
+
+    if (platforms.length > 0) {
+      update.platforms = platforms;
+    }
+  }
+
+  if (payload.budget !== undefined) {
+    const numericBudget = Number(payload.budget);
+    update.budget = Number.isFinite(numericBudget) ? numericBudget : payload.budget;
+  }
+
+  update.aiOutput = buildLegacyAiOutput(update, {
+    sourceDetails: isPlainObject(payload?.aiOutput?.sourceDetails) ? payload.aiOutput.sourceDetails : isPlainObject(payload?.sourceDetails) ? payload.sourceDetails : {},
+    generationModel: payload?.aiOutput?.generationModel || payload?.generationModel,
+    generatedAt: payload?.aiOutput?.generatedAt || payload?.generatedAt,
+  });
+
+  return update;
 };
 
 const buildCampaignQuery = (userId, search) => {
@@ -95,30 +253,30 @@ export const createCampaign = async (userId, payload) => {
     owner: userId,
   });
 
-  return Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+  const populatedCampaign = await Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+
+  return normalizeCampaignResponse(populatedCampaign);
 };
 
 export const saveGeneratedCampaign = async (userId, payload) => {
   const campaignPlan = getCampaignPlan(payload);
   const sourceDetails = getSourceDetails(payload);
-
-  const title = normalizeString(payload?.title, normalizeString(campaignPlan.campaignName, 'New Campaign'));
+  const normalizedFields = normalizeCampaignFields(
+    {
+      ...payload,
+      ...campaignPlan,
+      ...sourceDetails,
+    },
+    {}
+  );
   const companyName = normalizeString(
     payload?.companyName,
-    normalizeString(sourceDetails.companyName, normalizeString(sourceDetails.title, normalizeString(title, 'Unknown Company')))
+    normalizeString(sourceDetails.companyName, normalizeString(sourceDetails.title, normalizeString(normalizedFields.title, 'Unknown Company')))
   );
   const industry = normalizeString(payload?.industry, normalizeString(sourceDetails.industry, 'General'));
-  const description = normalizeString(
-    payload?.description,
-    normalizeString(sourceDetails.description, normalizeString(campaignPlan.campaignSummary, normalizeString(payload?.sourcePrompt, 'Generated campaign')))
-  );
-  const targetAudience = normalizeString(
-    payload?.targetAudience,
-    normalizeString(sourceDetails.targetAudience, normalizeString(campaignPlan.targetAudience, 'General audience'))
-  );
   const campaignGoal = normalizeString(
     payload?.campaignGoal,
-    normalizeString(sourceDetails.campaignGoal, normalizeString(campaignPlan.campaignSummary, 'Generate awareness'))
+    normalizeString(sourceDetails.campaignGoal, normalizeString(normalizedFields.campaignSummary, 'Generate awareness'))
   );
   const payloadPlatforms = normalizeStringArray(payload?.platforms);
   const sourcePlatforms = normalizeStringArray(sourceDetails.platforms);
@@ -126,29 +284,40 @@ export const saveGeneratedCampaign = async (userId, payload) => {
   const numericBudget = Number(payload?.budget ?? sourceDetails.budget ?? 0);
   const budgetValue = Number.isFinite(numericBudget) ? numericBudget : 0;
 
-  const aiOutput = {
-    ...campaignPlan,
+  const aiOutput = buildLegacyAiOutput(normalizedFields, {
     sourceDetails,
     generationModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
     generatedAt: new Date().toISOString(),
-  };
+  });
 
   const campaign = await Campaign.create({
-    title,
+    title: normalizedFields.title,
     companyName,
     industry,
-    description,
-    targetAudience,
+    description: normalizeString(
+      payload?.description,
+      normalizeString(sourceDetails.description, normalizeString(normalizedFields.campaignSummary, normalizeString(payload?.sourcePrompt, 'Generated campaign')))
+    ),
+    campaignSummary: normalizedFields.campaignSummary,
+    targetAudience: normalizedFields.targetAudience,
     campaignGoal,
     platforms,
     budget: budgetValue,
     status: payload?.status || 'Ready',
     sourcePrompt: normalizeString(payload?.sourcePrompt, normalizeString(sourceDetails.description, '')),
+    brandTone: normalizedFields.brandTone,
+    marketingGoals: normalizedFields.marketingGoals,
+    contentCalendar: normalizedFields.contentCalendar,
+    captions: normalizedFields.captions,
+    hashtags: normalizedFields.hashtags,
+    imagePrompts: normalizedFields.imagePrompts,
     aiOutput,
     owner: userId,
   });
 
-  return Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+  const populatedCampaign = await Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+
+  return normalizeCampaignResponse(populatedCampaign);
 };
 
 export const listCampaigns = async (userId, { page = 1, limit, search = '' }) => {
@@ -177,16 +346,21 @@ export const listCampaigns = async (userId, { page = 1, limit, search = '' }) =>
 };
 
 export const getCampaign = async (campaignId, userId) => {
-  return getCampaignByIdForUser(campaignId, userId);
+  const campaign = await getCampaignByIdForUser(campaignId, userId);
+  return normalizeCampaignResponse(campaign);
 };
 
 export const updateCampaign = async (campaignId, userId, payload) => {
   const campaign = await getCampaignByIdForUser(campaignId, userId);
+  const updatePayload = normalizeCampaignUpdatePayload(payload, campaign);
 
-  Object.assign(campaign, payload);
+  Object.assign(campaign, updatePayload);
+
   await campaign.save();
 
-  return Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+  const populatedCampaign = await Campaign.findById(campaign._id).populate('owner', 'fullName email profilePicture role');
+
+  return normalizeCampaignResponse(populatedCampaign);
 };
 
 export const deleteCampaign = async (campaignId, userId) => {

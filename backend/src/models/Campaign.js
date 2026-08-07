@@ -22,6 +22,11 @@ const campaignSchema = new mongoose.Schema(
       required: [true, 'Description is required.'],
       trim: true,
     },
+    campaignSummary: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     targetAudience: {
       type: String,
       required: [true, 'Target audience is required.'],
@@ -49,6 +54,31 @@ const campaignSchema = new mongoose.Schema(
       type: String,
       default: '',
       trim: true,
+    },
+    brandTone: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    marketingGoals: {
+      type: [String],
+      default: [],
+    },
+    contentCalendar: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    captions: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    hashtags: {
+      type: [String],
+      default: [],
+    },
+    imagePrompts: {
+      type: [String],
+      default: [],
     },
     aiOutput: {
       type: mongoose.Schema.Types.Mixed,

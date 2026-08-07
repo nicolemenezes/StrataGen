@@ -45,8 +45,59 @@ export const createCampaignValidator = [
   stringField('companyName').isLength({ min: 2 }).withMessage('companyName must be at least 2 characters long.'),
   stringField('industry').isLength({ min: 2 }).withMessage('industry must be at least 2 characters long.'),
   stringField('description').isLength({ min: 10 }).withMessage('description must be at least 10 characters long.'),
+  body('campaignSummary')
+    .optional()
+    .isString()
+    .withMessage('campaignSummary must be a string.')
+    .trim(),
   stringField('targetAudience').isLength({ min: 2 }).withMessage('targetAudience must be at least 2 characters long.'),
   stringField('campaignGoal').isLength({ min: 2 }).withMessage('campaignGoal must be at least 2 characters long.'),
+  body('brandTone')
+    .optional()
+    .isString()
+    .withMessage('brandTone must be a string.')
+    .trim(),
+  body('marketingGoals')
+    .optional()
+    .isArray()
+    .withMessage('marketingGoals must be an array.'),
+  body('marketingGoals.*')
+    .optional()
+    .isString()
+    .withMessage('Each marketing goal must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Marketing goal entries cannot be empty.'),
+  body('contentCalendar')
+    .optional()
+    .isArray()
+    .withMessage('contentCalendar must be an array.'),
+  body('captions')
+    .optional()
+    .isArray()
+    .withMessage('captions must be an array.'),
+  body('hashtags')
+    .optional()
+    .isArray()
+    .withMessage('hashtags must be an array.'),
+  body('hashtags.*')
+    .optional()
+    .isString()
+    .withMessage('Each hashtag must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Hashtag entries cannot be empty.'),
+  body('imagePrompts')
+    .optional()
+    .isArray()
+    .withMessage('imagePrompts must be an array.'),
+  body('imagePrompts.*')
+    .optional()
+    .isString()
+    .withMessage('Each image prompt must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Image prompt entries cannot be empty.'),
   body('platforms')
     .isArray({ min: 1 })
     .withMessage('platforms must be a non-empty array.'),
@@ -73,8 +124,59 @@ export const updateCampaignValidator = [
   optionalStringField('companyName').isLength({ min: 2 }).withMessage('companyName must be at least 2 characters long.'),
   optionalStringField('industry').isLength({ min: 2 }).withMessage('industry must be at least 2 characters long.'),
   optionalStringField('description').isLength({ min: 10 }).withMessage('description must be at least 10 characters long.'),
+  body('campaignSummary')
+    .optional()
+    .isString()
+    .withMessage('campaignSummary must be a string.')
+    .trim(),
   optionalStringField('targetAudience').isLength({ min: 2 }).withMessage('targetAudience must be at least 2 characters long.'),
   optionalStringField('campaignGoal').isLength({ min: 2 }).withMessage('campaignGoal must be at least 2 characters long.'),
+  body('brandTone')
+    .optional()
+    .isString()
+    .withMessage('brandTone must be a string.')
+    .trim(),
+  body('marketingGoals')
+    .optional()
+    .isArray()
+    .withMessage('marketingGoals must be an array.'),
+  body('marketingGoals.*')
+    .optional()
+    .isString()
+    .withMessage('Each marketing goal must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Marketing goal entries cannot be empty.'),
+  body('contentCalendar')
+    .optional()
+    .isArray()
+    .withMessage('contentCalendar must be an array.'),
+  body('captions')
+    .optional()
+    .isArray()
+    .withMessage('captions must be an array.'),
+  body('hashtags')
+    .optional()
+    .isArray()
+    .withMessage('hashtags must be an array.'),
+  body('hashtags.*')
+    .optional()
+    .isString()
+    .withMessage('Each hashtag must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Hashtag entries cannot be empty.'),
+  body('imagePrompts')
+    .optional()
+    .isArray()
+    .withMessage('imagePrompts must be an array.'),
+  body('imagePrompts.*')
+    .optional()
+    .isString()
+    .withMessage('Each image prompt must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('Image prompt entries cannot be empty.'),
   body('sourcePrompt')
     .optional()
     .isString()
