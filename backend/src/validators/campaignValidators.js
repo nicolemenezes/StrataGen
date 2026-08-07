@@ -75,6 +75,15 @@ export const updateCampaignValidator = [
   optionalStringField('description').isLength({ min: 10 }).withMessage('description must be at least 10 characters long.'),
   optionalStringField('targetAudience').isLength({ min: 2 }).withMessage('targetAudience must be at least 2 characters long.'),
   optionalStringField('campaignGoal').isLength({ min: 2 }).withMessage('campaignGoal must be at least 2 characters long.'),
+  body('sourcePrompt')
+    .optional()
+    .isString()
+    .withMessage('sourcePrompt must be a string.')
+    .trim(),
+  body('aiOutput')
+    .optional()
+    .custom((value) => value && typeof value === 'object' && !Array.isArray(value))
+    .withMessage('aiOutput must be an object.'),
   body('platforms')
     .optional()
     .isArray({ min: 1 })
@@ -95,4 +104,22 @@ export const updateCampaignValidator = [
     .optional()
     .isIn(statusValues)
     .withMessage(`status must be one of: ${statusValues.join(', ')}`),
+];
+
+export const saveGeneratedCampaignValidator = [
+  body().custom((value) => {
+    const bodyValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const hasCampaignPlan = bodyValue.campaignPlan && typeof bodyValue.campaignPlan === 'object' && !Array.isArray(bodyValue.campaignPlan);
+    const hasCampaignDetails = bodyValue.campaignDetails && typeof bodyValue.campaignDetails === 'object' && !Array.isArray(bodyValue.campaignDetails);
+    const hasTopLevelCampaignFields =
+      typeof bodyValue.title === 'string' ||
+      typeof bodyValue.companyName === 'string' ||
+      typeof bodyValue.description === 'string';
+
+    if (!hasCampaignPlan && !hasCampaignDetails && !hasTopLevelCampaignFields) {
+      throw new Error('campaignPlan or campaignDetails must be provided.');
+    }
+
+    return true;
+  }),
 ];

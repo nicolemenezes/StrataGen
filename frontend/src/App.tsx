@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import DashboardPage from './pages/DashboardPage';
 import StrategyPage from './pages/StrategyPage';
+import ImagesPage from './pages/ImagesPage';
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
       {
         path: '/campaign/:id',
         element: <CampaignCanvasPage />,
+      },
+      {
+        path: '/images/:campaignId',
+        element: <ImagesPage />,
       },
     ],
   },

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import '../config/env.js';
 
 import { AppError } from '../utils/AppError.js';
 

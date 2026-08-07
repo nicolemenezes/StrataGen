@@ -45,6 +45,15 @@ const campaignSchema = new mongoose.Schema(
       required: [true, 'Budget is required.'],
       min: [0, 'Budget must be zero or greater.'],
     },
+    sourcePrompt: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    aiOutput: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     status: {
       type: String,
       enum: ['Draft', 'Generating', 'Ready', 'Scheduled', 'Published'],

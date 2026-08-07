@@ -22,8 +22,18 @@ export async function getCampaigns(params = {}) {
   };
 }
 
-export async function getCampaignById() {
-  return { data: null };
+export async function getCampaignById(campaignId) {
+  const response = await apiClient.get(`/api/campaigns/${campaignId}`);
+  return {
+    data: response.data?.data?.campaign ?? null,
+  };
+}
+
+export async function saveCampaign(payload) {
+  const response = await apiClient.post('/api/campaigns/save', payload);
+  return {
+    data: response.data?.data?.campaign ?? null,
+  };
 }
 
 export async function createCampaign() {
@@ -32,6 +42,14 @@ export async function createCampaign() {
 
 export async function updateCampaign() {
   return { data: null };
+}
+
+export async function updateCampaignById(campaignId, payload) {
+  const response = await apiClient.put(`/api/campaigns/${campaignId}`, payload);
+
+  return {
+    data: response.data?.data?.campaign ?? null,
+  };
 }
 
 export async function runCampaign() {
@@ -65,8 +83,10 @@ export async function continueCampaignChat() {
 const campaignApi = {
   getCampaigns,
   getCampaignById,
+  saveCampaign,
   createCampaign,
   updateCampaign,
+  updateCampaignById,
   runCampaign,
   approveCampaign,
   sendCampaignCommand,

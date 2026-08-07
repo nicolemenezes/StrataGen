@@ -2,7 +2,14 @@ import { matchedData, validationResult } from 'express-validator';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess } from '../utils/response.js';
-import { createCampaign, deleteCampaign, getCampaign, listCampaigns, updateCampaign } from '../services/campaignService.js';
+import {
+  createCampaign,
+  deleteCampaign,
+  getCampaign,
+  listCampaigns,
+  saveGeneratedCampaign,
+  updateCampaign,
+} from '../services/campaignService.js';
 
 const handleValidationErrors = (req) => {
   const errors = validationResult(req);
@@ -20,6 +27,18 @@ export const create = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     statusCode: 201,
     message: 'Campaign created successfully.',
+    data: { campaign },
+  });
+});
+
+export const saveGenerated = asyncHandler(async (req, res) => {
+  handleValidationErrors(req);
+  const data = req.body;
+  const campaign = await saveGeneratedCampaign(req.user._id, data);
+
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Campaign saved successfully.',
     data: { campaign },
   });
 });
