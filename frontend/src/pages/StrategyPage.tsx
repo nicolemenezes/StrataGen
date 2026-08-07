@@ -4,13 +4,89 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getCampaignChat, strategizeAndChat, continueCampaignChat, approveCampaign } from '../services/api/campaignApi';
+import { getCampaignChat, approveCampaign } from '../services/api/campaignApi';
+import { generateCampaign } from '../services/api/aiApi';
 
 // Define types for our state
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const formatCampaignPlan = (plan: Record<string, unknown>) => {
+  const asString = (value: unknown) => {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    return '';
+  };
+
+  const asStringArray = (value: unknown) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  };
+
+  const asObjectArray = (value: unknown) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item));
+  };
+
+  const contentCalendar = asObjectArray(plan.contentCalendar)
+    .map((item) => {
+      const day = asString(item.day);
+      const platform = asString(item.platform);
+      const contentType = asString(item.contentType);
+      const focus = asString(item.focus);
+      const goal = asString(item.goal);
+
+      return `- Day ${day || '?'}: ${platform || 'platform'} - ${contentType || 'content'}\n  - Focus: ${focus || 'n/a'}\n  - Goal: ${goal || 'n/a'}`;
+    })
+    .join('\n');
+
+  const captions = asObjectArray(plan.captions)
+    .map((item) => {
+      const platform = asString(item.platform);
+      const contentType = asString(item.contentType);
+      const caption = asString(item.caption);
+
+      return `- ${platform || 'platform'} (${contentType || 'content'}): ${caption || 'n/a'}`;
+    })
+    .join('\n');
+
+  const hashtags = asStringArray(plan.hashtags);
+  const imagePrompts = asStringArray(plan.imagePrompts);
+  const marketingGoals = asStringArray(plan.marketingGoals);
+
+  return [
+    `# ${asString(plan.campaignName) || 'Campaign Plan'}`,
+    '',
+    `**Summary:** ${asString(plan.campaignSummary) || 'n/a'}`,
+    `**Target Audience:** ${asString(plan.targetAudience) || 'n/a'}`,
+    `**Brand Tone:** ${asString(plan.brandTone) || 'n/a'}`,
+    '',
+    '## Marketing Goals',
+    marketingGoals.length ? marketingGoals.map((goal) => `- ${goal}`).join('\n') : '- n/a',
+    '',
+    '## Content Calendar',
+    contentCalendar || '- n/a',
+    '',
+    '## Captions',
+    captions || '- n/a',
+    '',
+    '## Hashtags',
+    hashtags.length ? hashtags.map((tag) => `- ${tag}`).join('\n') : '- n/a',
+    '',
+    '## Image Prompts',
+    imagePrompts.length ? imagePrompts.map((prompt) => `- ${prompt}`).join('\n') : '- n/a',
+  ].join('\n');
+};
 
 // A simple component for a chat message, now with Markdown support
 const ChatBubble = ({ message }: { message: ChatMessage }) => {
@@ -96,18 +172,16 @@ const StrategyPage = () => {
     setInputValue('');
 
     try {
-      const response = await strategizeAndChat({
-        title: 'New Campaign Strategy', // This could be taken from a form field in the future
-        brief: inputValue,
-      });
+      const response = await generateCampaign(inputValue);
+      const generatedPlan = response.data;
 
-      const { campaign_id, initial_reply } = response.data;
-
-      setCampaignId(campaign_id);
-      navigate(`/strategy/${campaign_id}`, { replace: true }); // Update URL to include the new ID
-
-      // Add the AI's first response to the chat
-      setMessages(prev => [...prev, { role: 'assistant' as const, content: initial_reply }]);
+      setMessages([
+        firstUserMessage,
+        {
+          role: 'assistant' as const,
+          content: formatCampaignPlan(generatedPlan),
+        },
+      ]);
     } catch (err) {
       toast.error('Failed to start conversation. Please try again.');
       setMessages([]); // Clear messages on failure
@@ -119,7 +193,7 @@ const StrategyPage = () => {
   // Handles all subsequent messages in an existing chat
   const handleContinueSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !campaignId) return;
+    if (!inputValue.trim()) return;
 
     const newUserMessage = { role: 'user' as const, content: inputValue };
     setMessages(prev => [...prev, newUserMessage]);
@@ -127,8 +201,8 @@ const StrategyPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await continueCampaignChat(campaignId, inputValue);
-      setMessages(prev => [...prev, { role: 'assistant' as const, content: response.data.reply }]);
+      const response = await generateCampaign(inputValue);
+      setMessages(prev => [...prev, { role: 'assistant' as const, content: formatCampaignPlan(response.data) }]);
     } catch (err) {
       toast.error('Failed to get response.');
       setMessages(prev => prev.slice(0, -1)); // Remove the user message on failure
