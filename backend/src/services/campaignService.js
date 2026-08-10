@@ -37,6 +37,26 @@ const normalizeObjectArray = (value) => {
   return value.filter((item) => item && typeof item === 'object' && !Array.isArray(item));
 };
 
+const normalizeImagePromptStrings = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item.trim();
+      }
+
+      if (item && typeof item === 'object' && !Array.isArray(item) && typeof item.prompt === 'string') {
+        return item.prompt.trim();
+      }
+
+      return '';
+    })
+    .filter(Boolean);
+};
+
 const getCampaignContentSource = (payload) => {
   const source = isPlainObject(payload) ? { ...payload } : {};
 
@@ -119,11 +139,11 @@ const normalizeCampaignFields = (payload, fallback = {}) => {
     : normalizeStringArray(fallbackSource.hashtags).length
       ? normalizeStringArray(fallbackSource.hashtags)
       : normalizeStringArray(source.hashtags);
-  const imagePrompts = normalizeStringArray(payload?.imagePrompts).length
-    ? normalizeStringArray(payload?.imagePrompts)
-    : normalizeStringArray(fallbackSource.imagePrompts).length
-      ? normalizeStringArray(fallbackSource.imagePrompts)
-      : normalizeStringArray(source.imagePrompts);
+  const imagePrompts = normalizeImagePromptStrings(payload?.imagePrompts).length
+    ? normalizeImagePromptStrings(payload?.imagePrompts)
+    : normalizeImagePromptStrings(fallbackSource.imagePrompts).length
+      ? normalizeImagePromptStrings(fallbackSource.imagePrompts)
+      : normalizeImagePromptStrings(source.imagePrompts);
 
   return {
     title,

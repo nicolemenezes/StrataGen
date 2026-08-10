@@ -68,6 +68,45 @@ const normalizeObjectArray = (value, fieldName) => {
   return normalizedValues;
 };
 
+const normalizeImagePromptObject = (value, index) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppError(`AI response is missing a valid imagePrompts entry at index ${index}.`, 502);
+  }
+
+  const platform = normalizeString(value.platform, `imagePrompts[${index}].platform`);
+  const contentType = normalizeString(value.contentType, `imagePrompts[${index}].contentType`);
+  const prompt = normalizeString(value.prompt, `imagePrompts[${index}].prompt`);
+
+  return {
+    platform,
+    contentType,
+    prompt,
+  };
+};
+
+const isImageGenerationDisabled = (value) =>
+  value?.imageGenerationDisabled === true ||
+  value?.disableImageGeneration === true ||
+  value?.imagePromptsDisabled === true;
+
+const normalizeImagePromptArray = (value) => {
+  if (!Array.isArray(value)) {
+    throw new AppError('AI response is missing a valid imagePrompts.', 502);
+  }
+
+  if (!value.length) {
+    throw new AppError('AI response is missing a valid imagePrompts.', 502);
+  }
+
+  const normalizedValues = value.map((item, index) => normalizeImagePromptObject(item, index));
+
+  if (normalizedValues.length < 3 || normalizedValues.length > 5) {
+    throw new AppError('AI response must contain 3 to 5 imagePrompts entries.', 502);
+  }
+
+  return normalizedValues;
+};
+
 const parseJson = (text) => {
   const parsedText = extractJsonText(text);
 
@@ -88,6 +127,7 @@ const ensureObject = (value) => {
 
 export const parseCampaignResponse = (text) => {
   const parsedValue = ensureObject(parseJson(text));
+  const imagePrompts = Array.isArray(parsedValue.imagePrompts) ? parsedValue.imagePrompts : [];
 
   return {
     campaignName: normalizeString(parsedValue.campaignName, 'campaignName'),
@@ -98,7 +138,7 @@ export const parseCampaignResponse = (text) => {
     contentCalendar: normalizeObjectArray(parsedValue.contentCalendar, 'contentCalendar'),
     captions: normalizeObjectArray(parsedValue.captions, 'captions'),
     hashtags: normalizeStringArray(parsedValue.hashtags, 'hashtags'),
-    imagePrompts: normalizeStringArray(parsedValue.imagePrompts, 'imagePrompts'),
+    imagePrompts: isImageGenerationDisabled(parsedValue) && !imagePrompts.length ? [] : normalizeImagePromptArray(imagePrompts),
   };
 };
 
@@ -132,6 +172,6 @@ export const parseImagePromptsResponse = (text) => {
   const parsedValue = ensureObject(parseJson(text));
 
   return {
-    imagePrompts: normalizeStringArray(parsedValue.imagePrompts, 'imagePrompts'),
+    imagePrompts: normalizeImagePromptArray(parsedValue.imagePrompts),
   };
 };

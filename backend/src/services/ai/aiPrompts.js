@@ -30,6 +30,7 @@ const appendDetails = (lines, details) => {
     ['Brand Values', details.brandValues],
     ['Competitors', details.competitors],
     ['Additional Notes', details.additionalNotes],
+    ['Image Generation Disabled', details.imageGenerationDisabled ?? details.disableImageGeneration ?? details.imagePromptsDisabled],
   ];
 
   fields.forEach(([label, value]) => {
@@ -72,7 +73,11 @@ export const buildCampaignPrompt = (details) =>
       '- contentCalendar: array of objects with day, platform, contentType, focus, and goal',
       '- captions: array of objects with platform, contentType, and caption',
       '- hashtags: array of strings',
-      '- imagePrompts: array of strings',
+      '- imagePrompts: array of 3 to 5 objects with platform, contentType, and prompt',
+      '- Each image prompt must be detailed and optimized for Stable Diffusion image generation',
+      '- Each prompt should describe subject, environment, composition, lighting, mood, color palette, camera angle, lens feel, and brand-specific visual cues',
+      '- Every image prompt should be grounded in the campaign strategy and content calendar',
+      '- Do not return an empty imagePrompts array unless image generation is explicitly disabled',
     ].join('\n')
   );
 
@@ -115,7 +120,11 @@ export const buildImagePromptsPrompt = (details) =>
     [
       'Use these exact top-level keys: imagePrompts.',
       'Value requirements:',
-      '- imagePrompts: array of strings',
+      '- imagePrompts: array of 3 to 5 objects with platform, contentType, and prompt',
+      '- Each prompt must be detailed and optimized for Stable Diffusion image generation',
+      '- Each prompt should describe subject, environment, composition, lighting, mood, color palette, camera angle, lens feel, and brand-specific visual cues',
+      '- Base every prompt on the campaign strategy and content calendar',
+      '- Do not return an empty imagePrompts array unless image generation is explicitly disabled',
     ].join('\n')
   );
 
@@ -134,7 +143,10 @@ export const buildRefineCampaignPrompt = (campaign, instructions) => {
     '- contentCalendar: array of objects with day, platform, contentType, focus, and goal',
     '- captions: array of objects with platform, contentType, and caption',
     '- hashtags: array of strings',
-    '- imagePrompts: array of strings',
+    '- imagePrompts: array of 3 to 5 objects with platform, contentType, and prompt',
+    '- Each prompt must be detailed and optimized for Stable Diffusion image generation',
+    '- Each prompt should describe subject, environment, composition, lighting, mood, color palette, camera angle, lens feel, and brand-specific visual cues',
+    '- Preserve imagePrompts unless the user explicitly asks to disable image generation',
     'User instructions:',
     stringifyValue(instructions),
     'Current campaign JSON:',
