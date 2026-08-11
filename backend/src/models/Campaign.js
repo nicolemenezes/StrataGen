@@ -1,5 +1,53 @@
 import mongoose from 'mongoose';
 
+const campaignImageSchema = new mongoose.Schema(
+  {
+    secure_url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    publicId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    platform: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    contentType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    prompt: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['accepted'],
+      default: 'accepted',
+    },
+    sourceHash: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      default: 'image/png',
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const campaignSchema = new mongoose.Schema(
   {
     title: {
@@ -78,6 +126,10 @@ const campaignSchema = new mongoose.Schema(
     },
     imagePrompts: {
       type: [String],
+      default: [],
+    },
+    images: {
+      type: [campaignImageSchema],
       default: [],
     },
     aiOutput: {

@@ -16,9 +16,27 @@ export async function generateCampaignImage(payload) {
   };
 }
 
+export async function regenerateCampaignImage(payload) {
+  const response = await apiClient.post('/api/images/regenerate', payload);
+  return {
+    data: response.data?.data ?? null,
+    message: response.data?.message ?? 'Image regenerated successfully.',
+  };
+}
+
+export async function acceptCampaignImage(payload) {
+  const response = await apiClient.post('/api/images/accept', payload);
+  return {
+    data: response.data?.data ?? null,
+    message: response.data?.message ?? 'Image accepted successfully.',
+  };
+}
+
 const imageApi = {
   getImageUrl,
   generateCampaignImage,
+  regenerateCampaignImage,
+  acceptCampaignImage,
 };
 
 export default imageApi;

@@ -20,13 +20,76 @@ export const generateImageValidator = [
     .trim()
     .notEmpty()
     .withMessage('prompt cannot be empty.'),
-  body().custom((value) => {
-    const imagePrompt = value?.imagePrompt ?? value?.prompt;
+];
 
-    if (typeof imagePrompt !== 'string' || !imagePrompt.trim()) {
-      throw new Error('imagePrompt is required.');
-    }
+export const regenerateImageValidator = [
+  body('campaignId')
+    .notEmpty()
+    .withMessage('campaignId is required.')
+    .isMongoId()
+    .withMessage('campaignId must be a valid MongoDB ObjectId.'),
+  body('prompt')
+    .notEmpty()
+    .withMessage('prompt is required.')
+    .isString()
+    .withMessage('prompt must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('prompt cannot be empty.'),
+  body('platform')
+    .notEmpty()
+    .withMessage('platform is required.')
+    .isString()
+    .withMessage('platform must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('platform cannot be empty.'),
+  body('contentType')
+    .notEmpty()
+    .withMessage('contentType is required.')
+    .isString()
+    .withMessage('contentType must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('contentType cannot be empty.'),
+];
 
-    return true;
-  }),
+export const acceptImageValidator = [
+  body('campaignId')
+    .notEmpty()
+    .withMessage('campaignId is required.')
+    .isMongoId()
+    .withMessage('campaignId must be a valid MongoDB ObjectId.'),
+  body('prompt')
+    .notEmpty()
+    .withMessage('prompt is required.')
+    .isString()
+    .withMessage('prompt must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('prompt cannot be empty.'),
+  body('platform')
+    .notEmpty()
+    .withMessage('platform is required.')
+    .isString()
+    .withMessage('platform must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('platform cannot be empty.'),
+  body('contentType')
+    .notEmpty()
+    .withMessage('contentType is required.')
+    .isString()
+    .withMessage('contentType must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('contentType cannot be empty.'),
+  body('imageDataUrl')
+    .notEmpty()
+    .withMessage('imageDataUrl is required.')
+    .isString()
+    .withMessage('imageDataUrl must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('imageDataUrl cannot be empty.'),
 ];
