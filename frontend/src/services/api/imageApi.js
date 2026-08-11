@@ -1,30 +1,24 @@
-const BACKEND_NOT_IMPLEMENTED_ERROR = 'Backend not implemented.';
-
-function notImplemented() {
-  return 'https://placehold.co/800x800/png?text=Image+Preview';
-}
+import apiClient from '../../api/apiClient.js';
 
 export function getImageUrl(path) {
-  return path ? notImplemented() : null;
+  if (!path) {
+    return null;
+  }
+
+  return `https://placehold.co/800x800/png?text=Image+Preview`;
 }
 
-export async function uploadImage() {
-  return { data: { ok: true } };
-}
-
-export async function regenerateImage() {
-  return { data: { ok: true } };
-}
-
-export async function deleteImage() {
-  return { data: { ok: true } };
+export async function generateCampaignImage(payload) {
+  const response = await apiClient.post('/api/images/generate', payload);
+  return {
+    data: response.data?.data ?? null,
+    message: response.data?.message ?? 'Image generated successfully.',
+  };
 }
 
 const imageApi = {
   getImageUrl,
-  uploadImage,
-  regenerateImage,
-  deleteImage,
+  generateCampaignImage,
 };
 
 export default imageApi;

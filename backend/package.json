@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.15.0",
+    "@huggingface/inference": "^4.13.25",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import authRoutes from './routes/authRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 import { errorHandler } from './middleware/errorMiddleware.js';
 import { notFound } from './middleware/notFound.js';
 
@@ -31,6 +32,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/images', imageRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
