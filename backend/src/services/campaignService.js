@@ -57,6 +57,48 @@ const normalizeImagePromptStrings = (value) => {
     .filter(Boolean);
 };
 
+const normalizeImagePromptObjects = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item, index) => {
+      if (typeof item === 'string') {
+        const prompt = item.trim();
+
+        if (!prompt) {
+          return null;
+        }
+
+        return {
+          platform: `Prompt ${index + 1}`,
+          contentType: 'image',
+          prompt,
+        };
+      }
+
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        return null;
+      }
+
+      const prompt = normalizeString(item.prompt, '');
+
+      if (!prompt) {
+        return null;
+      }
+
+      return {
+        platform: normalizeString(item.platform, `Prompt ${index + 1}`),
+        contentType: normalizeString(item.contentType, 'image'),
+        prompt,
+      };
+    })
+    .filter(Boolean);
+};
+
+const hasItems = (value) => Array.isArray(value) && value.length > 0;
+
 const getCampaignContentSource = (payload) => {
   const source = isPlainObject(payload) ? { ...payload } : {};
 
@@ -158,18 +200,23 @@ const normalizeCampaignFields = (payload, fallback = {}) => {
   };
 };
 
-const buildLegacyAiOutput = (campaignFields, extra = {}) => ({
-  campaignName: campaignFields.title,
-  campaignSummary: campaignFields.campaignSummary,
-  targetAudience: campaignFields.targetAudience,
-  brandTone: campaignFields.brandTone,
-  marketingGoals: campaignFields.marketingGoals,
-  contentCalendar: campaignFields.contentCalendar,
-  captions: campaignFields.captions,
-  hashtags: campaignFields.hashtags,
-  imagePrompts: campaignFields.imagePrompts,
-  ...extra,
-});
+const buildLegacyAiOutput = (campaignFields, extra = {}) => {
+  const { imagePrompts: extraImagePrompts, ...rest } = extra;
+  const resolvedImagePrompts = hasItems(extraImagePrompts) ? extraImagePrompts : campaignFields.imagePrompts;
+
+  return {
+    campaignName: campaignFields.title,
+    campaignSummary: campaignFields.campaignSummary,
+    targetAudience: campaignFields.targetAudience,
+    brandTone: campaignFields.brandTone,
+    marketingGoals: campaignFields.marketingGoals,
+    contentCalendar: campaignFields.contentCalendar,
+    captions: campaignFields.captions,
+    hashtags: campaignFields.hashtags,
+    imagePrompts: resolvedImagePrompts,
+    ...rest,
+  };
+};
 
 const normalizeCampaignResponse = (campaignDoc) => {
   if (!campaignDoc) {
@@ -199,6 +246,9 @@ const normalizeCampaignResponse = (campaignDoc) => {
       sourceDetails: aiOutput.sourceDetails || {},
       generationModel: aiOutput.generationModel,
       generatedAt: aiOutput.generatedAt,
+      imagePrompts: hasItems(normalizeImagePromptObjects(aiOutput.imagePrompts))
+        ? normalizeImagePromptObjects(aiOutput.imagePrompts)
+        : normalizeImagePromptObjects(campaign.imagePrompts),
     }),
   };
 };
@@ -268,8 +318,32 @@ const getCampaignByIdForUser = async (campaignId, userId) => {
 };
 
 export const createCampaign = async (userId, payload) => {
+  const normalizedFields = normalizeCampaignFields(payload, {});
+  const imagePrompts = normalizeImagePromptStrings(payload?.imagePrompts).length
+    ? normalizeImagePromptStrings(payload.imagePrompts)
+    : normalizeImagePromptStrings(payload?.aiOutput?.imagePrompts).length
+      ? normalizeImagePromptStrings(payload.aiOutput.imagePrompts)
+      : normalizedFields.imagePrompts;
+  const aiOutputImagePrompts = hasItems(normalizeImagePromptObjects(payload?.aiOutput?.imagePrompts))
+    ? normalizeImagePromptObjects(payload.aiOutput.imagePrompts)
+    : normalizeImagePromptObjects(payload?.imagePrompts);
   const campaign = await Campaign.create({
     ...payload,
+    title: normalizedFields.title,
+    campaignSummary: normalizedFields.campaignSummary,
+    targetAudience: normalizedFields.targetAudience,
+    brandTone: normalizedFields.brandTone,
+    marketingGoals: normalizedFields.marketingGoals,
+    contentCalendar: normalizedFields.contentCalendar,
+    captions: normalizedFields.captions,
+    hashtags: normalizedFields.hashtags,
+    imagePrompts,
+    aiOutput: isPlainObject(payload?.aiOutput)
+      ? buildLegacyAiOutput(normalizedFields, {
+          ...payload.aiOutput,
+          imagePrompts: hasItems(aiOutputImagePrompts) ? aiOutputImagePrompts : normalizedFields.imagePrompts,
+        })
+      : payload.aiOutput,
     owner: userId,
   });
 
@@ -303,11 +377,17 @@ export const saveGeneratedCampaign = async (userId, payload) => {
   const platforms = payloadPlatforms.length ? payloadPlatforms : sourcePlatforms.length ? sourcePlatforms : ['General'];
   const numericBudget = Number(payload?.budget ?? sourceDetails.budget ?? 0);
   const budgetValue = Number.isFinite(numericBudget) ? numericBudget : 0;
+  const aiOutputImagePrompts = hasItems(normalizeImagePromptObjects(payload?.campaignPlan?.imagePrompts))
+    ? normalizeImagePromptObjects(payload.campaignPlan.imagePrompts)
+    : hasItems(normalizeImagePromptObjects(payload?.aiOutput?.imagePrompts))
+      ? normalizeImagePromptObjects(payload.aiOutput.imagePrompts)
+      : normalizeImagePromptObjects(payload?.imagePrompts);
 
   const aiOutput = buildLegacyAiOutput(normalizedFields, {
     sourceDetails,
     generationModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
     generatedAt: new Date().toISOString(),
+    imagePrompts: aiOutputImagePrompts.length ? aiOutputImagePrompts : normalizedFields.imagePrompts,
   });
 
   const campaign = await Campaign.create({
@@ -373,8 +453,21 @@ export const getCampaign = async (campaignId, userId) => {
 export const updateCampaign = async (campaignId, userId, payload) => {
   const campaign = await getCampaignByIdForUser(campaignId, userId);
   const updatePayload = normalizeCampaignUpdatePayload(payload, campaign);
+  const aiOutputImagePrompts = hasItems(normalizeImagePromptObjects(payload?.aiOutput?.imagePrompts))
+    ? normalizeImagePromptObjects(payload.aiOutput.imagePrompts)
+    : hasItems(normalizeImagePromptObjects(payload?.imagePrompts))
+      ? normalizeImagePromptObjects(payload.imagePrompts)
+      : hasItems(normalizeImagePromptObjects(campaign?.aiOutput?.imagePrompts))
+        ? normalizeImagePromptObjects(campaign.aiOutput.imagePrompts)
+        : normalizeImagePromptObjects(campaign.imagePrompts);
 
   Object.assign(campaign, updatePayload);
+  campaign.aiOutput = buildLegacyAiOutput(updatePayload, {
+    sourceDetails: isPlainObject(payload?.aiOutput?.sourceDetails) ? payload.aiOutput.sourceDetails : isPlainObject(payload?.sourceDetails) ? payload.sourceDetails : {},
+    generationModel: payload?.aiOutput?.generationModel || payload?.generationModel,
+    generatedAt: payload?.aiOutput?.generatedAt || payload?.generatedAt,
+    imagePrompts: aiOutputImagePrompts.length ? aiOutputImagePrompts : updatePayload.imagePrompts,
+  });
 
   await campaign.save();
 

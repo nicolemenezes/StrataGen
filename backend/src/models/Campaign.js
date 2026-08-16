@@ -48,6 +48,43 @@ const campaignImageSchema = new mongoose.Schema(
   }
 );
 
+const campaignCreativeApprovalSchema = new mongoose.Schema(
+  {
+    platform: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    contentType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    prompt: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['accepted', 'rejected'],
+      required: true,
+      trim: true,
+    },
+    reviewedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const campaignSchema = new mongoose.Schema(
   {
     title: {
@@ -130,6 +167,10 @@ const campaignSchema = new mongoose.Schema(
     },
     images: {
       type: [campaignImageSchema],
+      default: [],
+    },
+    imageApprovals: {
+      type: [campaignCreativeApprovalSchema],
       default: [],
     },
     aiOutput: {

@@ -30,7 +30,11 @@ const normalizeCampaign = (rawCampaign) => {
     : asObjectArray(aiOutput.contentCalendar);
   const normalizedCaptions = asObjectArray(campaign.captions).length ? asObjectArray(campaign.captions) : asObjectArray(aiOutput.captions);
   const normalizedHashtags = asStringArray(campaign.hashtags).length ? asStringArray(campaign.hashtags) : asStringArray(aiOutput.hashtags);
-  const normalizedImagePrompts = asStringArray(campaign.imagePrompts).length ? asStringArray(campaign.imagePrompts) : asStringArray(aiOutput.imagePrompts);
+  const normalizedImagePrompts = asStringArray(campaign.imagePrompts).length
+    ? asStringArray(campaign.imagePrompts)
+    : asObjectArray(aiOutput.imagePrompts)
+      .map((item) => asString(item.prompt))
+      .filter(Boolean);
 
   return {
     ...campaign,

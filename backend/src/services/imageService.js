@@ -1,23 +1,10 @@
 import '../config/env.js';
-
-import {
-  InferenceClient,
-  InferenceClientError,
-  InferenceClientHubApiError,
-  InferenceClientProviderApiError,
-  InferenceClientProviderOutputError,
-  InferenceClientRoutingError,
-} from '@huggingface/inference';
 import { AppError } from '../utils/AppError.js';
 
-const DEFAULT_MODEL_NAME = 'black-forest-labs/FLUX.1-dev';
-const HF_API_KEY = process.env.HF_API_KEY?.trim();
+const DEFAULT_MODEL_NAME = 'flux';
+const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY?.trim();
 
-console.info('[Hugging Face] API key configured:', Boolean(HF_API_KEY));
-
-let inferenceClient = null;
-
-const getModelName = () => process.env.HF_IMAGE_MODEL?.trim() || DEFAULT_MODEL_NAME;
+const getModelName = () => process.env.POLLINATIONS_IMAGE_MODEL?.trim() || DEFAULT_MODEL_NAME;
 
 const validatePrompt = (prompt) => {
   if (typeof prompt !== 'string' || !prompt.trim()) {
@@ -28,82 +15,58 @@ const validatePrompt = (prompt) => {
 };
 
 const getApiKey = () => {
-  if (!HF_API_KEY) {
-    throw new AppError('Hugging Face API key is not configured.', 500);
+  if (!POLLINATIONS_API_KEY) {
+    throw new AppError('Pollinations API key is not configured.', 500);
   }
 
-  return HF_API_KEY;
+  return POLLINATIONS_API_KEY;
 };
 
-const getInferenceClient = () => {
-  if (!inferenceClient) {
-    inferenceClient = new InferenceClient(getApiKey());
-  }
+const buildImageUrl = (prompt, modelName) => {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const encodedModel = encodeURIComponent(modelName);
 
-  return inferenceClient;
+  return `https://gen.pollinations.ai/image/${encodedPrompt}?model=${encodedModel}`;
 };
 
-const toDebugBody = (body) => {
-  if (typeof body === 'string') {
-    return body;
-  }
-
-  if (body === undefined || body === null) {
-    return '';
-  }
-
-  try {
-    return JSON.stringify(body, null, 2);
-  } catch (_error) {
-    return String(body);
-  }
+const logPollinationsRequest = ({ url, model }) => {
+  console.info('[Pollinations] Image request');
+  console.info('[Pollinations] Request URL:', url);
+  console.info('[Pollinations] Model:', model);
 };
 
-const logHuggingFaceError = (error) => {
-  const requestUrl = error?.httpRequest?.url || error?.request?.url || 'unknown';
-  const requestMethod = error?.httpRequest?.method || error?.request?.method || 'POST';
-  const statusCode = error?.httpResponse?.status || error?.response?.status || 0;
-  const requestId = error?.httpResponse?.requestId || error?.response?.requestId || '';
-  const responseBody = error?.httpResponse?.body ?? error?.response?.body ?? error?.body ?? '';
-
-  console.error('[Hugging Face] Image generation failed.');
-  console.error('[Hugging Face] Request:', `${requestMethod} ${requestUrl}`);
-  console.error('[Hugging Face] Status:', statusCode || 'unknown');
-  if (requestId) {
-    console.error('[Hugging Face] Request ID:', requestId);
-  }
-  console.error('[Hugging Face] Response body:', toDebugBody(responseBody));
+const logPollinationsResponse = ({ url, model, status, contentType, message }) => {
+  console.info('[Pollinations] Image response');
+  console.info('[Pollinations] Request URL:', url);
+  console.info('[Pollinations] Model:', model);
+  console.info('[Pollinations] HTTP status:', status);
+  console.info('[Pollinations] Response content-type:', contentType || '');
+  console.info('[Pollinations] Response body/error message:', message || '');
 };
 
-const mapStatusToError = (statusCode, message) => {
-  if (statusCode === 401 || statusCode === 403) {
-    return new AppError(message || 'Hugging Face authentication failed. Check HF_API_KEY permissions.', 401);
-  }
-
-  if (statusCode === 429) {
-    return new AppError(message || 'Hugging Face rate limit exceeded. Please retry shortly.', 429);
-  }
-
-  if (statusCode === 404) {
-    return new AppError(message || 'The requested Hugging Face model or provider could not be found.', 404);
-  }
-
-  if (statusCode === 503 || statusCode === 504) {
-    return new AppError(message || 'The Hugging Face model is loading or temporarily unavailable. Please retry shortly.', 503);
-  }
-
-  if (statusCode >= 500) {
-    return new AppError(message || 'Hugging Face image generation failed.', 502);
-  }
-
-  return new AppError(message || 'Hugging Face image generation request failed.', statusCode || 502);
-};
-
-const extractErrorMessage = (error) => {
-  const responseBody = error?.httpResponse?.body ?? error?.response?.body ?? error?.body ?? null;
-
+const extractErrorMessage = (responseBody) => {
   if (typeof responseBody === 'string' && responseBody.trim()) {
-    return responseBody.trim();
+    const trimmedBody = responseBody.trim();
+
+    try {
+      const parsed = JSON.parse(trimmedBody);
+
+      if (typeof parsed?.error === 'string' && parsed.error.trim()) {
+        return parsed.error.trim();
+      }
+
+      if (typeof parsed?.message === 'string' && parsed.message.trim()) {
+        return parsed.message.trim();
+      }
+
+      if (typeof parsed?.detail === 'string' && parsed.detail.trim()) {
+        return parsed.detail.trim();
+      }
+    } catch (_error) {
+      return trimmedBody;
+    }
+
+    return trimmedBody;
   }
 
   if (responseBody && typeof responseBody === 'object') {
@@ -118,117 +81,122 @@ const extractErrorMessage = (error) => {
     if (typeof responseBody.detail === 'string' && responseBody.detail.trim()) {
       return responseBody.detail.trim();
     }
-
-    if (typeof responseBody.estimated_time === 'number' && Number.isFinite(responseBody.estimated_time)) {
-      return `The Hugging Face model is still loading. Retry in about ${Math.ceil(responseBody.estimated_time)} seconds.`;
-    }
   }
 
   return '';
 };
 
-const ensureBuffer = async (output) => {
-  if (output instanceof Blob) {
-    const arrayBuffer = await output.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (!buffer.length) {
-      throw new AppError('Hugging Face API returned an empty image response.', 502);
-    }
-
-    return {
-      buffer,
-      mimeType: output.type || 'image/png',
-    };
+const mapStatusToError = (statusCode, message) => {
+  if (statusCode === 401 || statusCode === 403) {
+    return new AppError(message || 'Pollinations authentication failed. Check POLLINATIONS_API_KEY permissions.', 401);
   }
 
-  if (typeof output === 'string') {
-    const trimmedOutput = output.trim();
-
-    if (!trimmedOutput) {
-      throw new AppError('Hugging Face API returned an empty image response.', 502);
-    }
-
-    if (trimmedOutput.startsWith('data:')) {
-      const base64Content = trimmedOutput.split(',')[1] || '';
-      const buffer = Buffer.from(base64Content, 'base64');
-
-      if (!buffer.length) {
-        throw new AppError('Hugging Face API returned an empty image response.', 502);
-      }
-
-      return {
-        buffer,
-        mimeType: 'image/png',
-      };
-    }
-
-    return {
-      buffer: Buffer.from(trimmedOutput, 'base64'),
-      mimeType: 'image/png',
-    };
+  if (statusCode === 429) {
+    return new AppError(message || 'Pollinations rate limit exceeded. Please retry shortly.', 429);
   }
 
-  if (output instanceof ArrayBuffer) {
-    const buffer = Buffer.from(output);
-
-    if (!buffer.length) {
-      throw new AppError('Hugging Face API returned an empty image response.', 502);
-    }
-
-    return {
-      buffer,
-      mimeType: 'image/png',
-    };
+  if (statusCode === 404) {
+    return new AppError(message || 'The requested Pollinations model could not be found.', 404);
   }
 
-  throw new AppError('Hugging Face API returned an unsupported image response.', 502);
+  if (statusCode === 503 || statusCode === 504) {
+    return new AppError(message || 'The Pollinations service is temporarily unavailable. Please retry shortly.', statusCode);
+  }
+
+  if (statusCode >= 500) {
+    return new AppError(message || 'Pollinations image generation failed.', statusCode);
+  }
+
+  return new AppError(message || 'Pollinations image generation request failed.', statusCode || 502);
 };
 
-const handleInferenceError = (error) => {
-  if (error instanceof InferenceClientProviderApiError || error instanceof InferenceClientHubApiError) {
-    logHuggingFaceError(error);
+const readResponseBody = async (response) => {
+  const contentType = response.headers.get('content-type') || '';
 
-    const statusCode = error.httpResponse?.status || 502;
-    const message = extractErrorMessage(error) || error.message || 'Hugging Face image generation failed.';
-    throw mapStatusToError(statusCode, message);
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch (_error) {
+      return null;
+    }
   }
 
-  if (error instanceof InferenceClientRoutingError) {
-    logHuggingFaceError(error);
-    throw new AppError(error.message || 'Hugging Face routing failed for the requested image model.', 502);
+  try {
+    return await response.text();
+  } catch (_error) {
+    return '';
+  }
+};
+
+const ensureBuffer = async (response) => {
+  const contentType = response.headers.get('content-type')?.split(';')[0].trim() || 'image/png';
+
+  if (contentType.startsWith('text/') || contentType.includes('json')) {
+    const responseBody = await readResponseBody(response);
+    const message = extractErrorMessage(responseBody) || 'Pollinations API returned a non-image response.';
+    throw new AppError(message, 502);
   }
 
-  if (error instanceof InferenceClientProviderOutputError) {
-    logHuggingFaceError(error);
-    throw new AppError(error.message || 'Hugging Face provider returned an invalid image response.', 502);
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  if (!buffer.length) {
+    throw new AppError('Pollinations API returned an empty image response.', 502);
   }
 
-  if (error instanceof InferenceClientError) {
-    logHuggingFaceError(error);
-    throw new AppError(error.message || 'Hugging Face image generation failed.', 502);
-  }
+  return {
+    buffer,
+    mimeType: contentType,
+  };
+};
 
-  throw new AppError(error?.message || 'Unable to contact Hugging Face Inference Providers.', 502);
+const handlePollinationsError = async (response) => {
+  const contentType = response.headers.get('content-type') || '';
+  const responseBody = await readResponseBody(response);
+  const message = extractErrorMessage(responseBody);
+  logPollinationsResponse({
+    url: response.url,
+    model: getModelName(),
+    status: response.status,
+    contentType,
+    message: message || (typeof responseBody === 'string' ? responseBody.trim() : ''),
+  });
+  throw mapStatusToError(response.status, message || `Pollinations request failed with status ${response.status}.`);
 };
 
 export const generateImage = async (prompt) => {
   const normalizedPrompt = validatePrompt(prompt);
   const modelName = getModelName();
-  const client = getInferenceClient();
+  const apiKey = getApiKey();
+  const url = buildImageUrl(normalizedPrompt, modelName);
 
   try {
-    const image = await client.textToImage(
-      {
-        model: modelName,
-        inputs: normalizedPrompt,
-      },
-      {
-        outputType: 'blob',
-      }
-    );
+    logPollinationsRequest({
+      url,
+      model: modelName,
+    });
 
-    const { buffer, mimeType } = await ensureBuffer(image);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'image/*',
+      },
+    });
+
+    if (!response.ok) {
+      await handlePollinationsError(response);
+    }
+
+    logPollinationsResponse({
+      url: response.url || url,
+      model: modelName,
+      status: response.status,
+      contentType: response.headers.get('content-type') || '',
+      message: '',
+    });
+
+    const { buffer, mimeType } = await ensureBuffer(response);
 
     return {
       buffer,
@@ -237,7 +205,11 @@ export const generateImage = async (prompt) => {
       model: modelName,
     };
   } catch (error) {
-    handleInferenceError(error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    throw new AppError(error?.message || 'Unable to contact Pollinations image generation service.', 502);
   }
 };
 

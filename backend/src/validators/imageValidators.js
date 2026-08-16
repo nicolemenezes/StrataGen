@@ -84,12 +84,36 @@ export const acceptImageValidator = [
     .trim()
     .notEmpty()
     .withMessage('contentType cannot be empty.'),
-  body('imageDataUrl')
+];
+
+export const rejectImageValidator = [
+  body('campaignId')
     .notEmpty()
-    .withMessage('imageDataUrl is required.')
+    .withMessage('campaignId is required.')
+    .isMongoId()
+    .withMessage('campaignId must be a valid MongoDB ObjectId.'),
+  body('prompt')
+    .notEmpty()
+    .withMessage('prompt is required.')
     .isString()
-    .withMessage('imageDataUrl must be a string.')
+    .withMessage('prompt must be a string.')
     .trim()
     .notEmpty()
-    .withMessage('imageDataUrl cannot be empty.'),
+    .withMessage('prompt cannot be empty.'),
+  body('platform')
+    .notEmpty()
+    .withMessage('platform is required.')
+    .isString()
+    .withMessage('platform must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('platform cannot be empty.'),
+  body('contentType')
+    .notEmpty()
+    .withMessage('contentType is required.')
+    .isString()
+    .withMessage('contentType must be a string.')
+    .trim()
+    .notEmpty()
+    .withMessage('contentType cannot be empty.'),
 ];

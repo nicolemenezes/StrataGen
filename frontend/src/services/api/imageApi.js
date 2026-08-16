@@ -28,7 +28,15 @@ export async function acceptCampaignImage(payload) {
   const response = await apiClient.post('/api/images/accept', payload);
   return {
     data: response.data?.data ?? null,
-    message: response.data?.message ?? 'Image accepted successfully.',
+    message: response.data?.message ?? 'Creative accepted successfully.',
+  };
+}
+
+export async function rejectCampaignImage(payload) {
+  const response = await apiClient.post('/api/images/reject', payload);
+  return {
+    data: response.data?.data ?? null,
+    message: response.data?.message ?? 'Creative rejected successfully.',
   };
 }
 
@@ -37,6 +45,7 @@ const imageApi = {
   generateCampaignImage,
   regenerateCampaignImage,
   acceptCampaignImage,
+  rejectCampaignImage,
 };
 
 export default imageApi;

@@ -4,7 +4,7 @@ import { AppError } from '../utils/AppError.js';
 import { sendSuccess } from '../utils/response.js';
 import { getCampaign } from '../services/campaignService.js';
 import { generateImage } from '../services/imageService.js';
-import { acceptCampaignImage } from '../services/campaignImageService.js';
+import { acceptCampaignCreative, rejectCampaignCreative } from '../services/campaignCreativeService.js';
 
 const handleValidationErrors = (req) => {
   const errors = validationResult(req);
@@ -70,21 +70,42 @@ export const accept = asyncHandler(async (req, res) => {
   handleValidationErrors(req);
 
   const data = matchedData(req, { locations: ['body'] });
-  const acceptedImage = await acceptCampaignImage({
+  const approval = await acceptCampaignCreative({
     campaignId: data.campaignId,
     userId: req.user._id,
     prompt: data.prompt,
     platform: data.platform,
     contentType: data.contentType,
-    imageDataUrl: data.imageDataUrl,
   });
 
   return sendSuccess(res, {
     statusCode: 200,
-    message: 'Image accepted successfully.',
+    message: 'Creative accepted successfully.',
     data: {
       campaignId: data.campaignId,
-      image: acceptedImage,
+      approval,
+    },
+  });
+});
+
+export const reject = asyncHandler(async (req, res) => {
+  handleValidationErrors(req);
+
+  const data = matchedData(req, { locations: ['body'] });
+  const approval = await rejectCampaignCreative({
+    campaignId: data.campaignId,
+    userId: req.user._id,
+    prompt: data.prompt,
+    platform: data.platform,
+    contentType: data.contentType,
+  });
+
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: 'Creative rejected successfully.',
+    data: {
+      campaignId: data.campaignId,
+      approval,
     },
   });
 });
