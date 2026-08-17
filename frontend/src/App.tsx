@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ui/ProtectedRoute';
 import DashboardPage from './pages/DashboardPage';
 import StrategyPage from './pages/StrategyPage';
 import ImagesPage from './pages/ImagesPage';
+import AutopostPage from './pages/AutopostPage';
 
 const router = createBrowserRouter([
   {
@@ -40,6 +41,10 @@ const router = createBrowserRouter([
       {
         path: '/images/:campaignId',
         element: <ImagesPage />,
+      },
+      {
+        path: '/autopost/:campaignId',
+        element: <AutopostPage />,
       },
     ],
   },

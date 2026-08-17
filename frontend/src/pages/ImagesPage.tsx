@@ -248,7 +248,7 @@ const ImagesPage = () => {
           {hasAcceptedCreative && (
             <button
               type="button"
-              onClick={() => navigate(`/campaign/${campaignId}`)}
+              onClick={() => navigate(`/autopost/${campaignId}`)}
               className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
             >
               Continue to Autoposting
@@ -344,7 +344,7 @@ const ImagesPage = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate(`/campaign/${campaignId}`)}
+                  onClick={() => navigate(`/autopost/${campaignId}`)}
                   className="mt-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
                 >
                   Continue to Autoposting
