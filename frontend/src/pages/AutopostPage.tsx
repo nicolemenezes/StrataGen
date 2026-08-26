@@ -201,7 +201,7 @@ const AutopostPage = () => {
         <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
           <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="border-b border-slate-100 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-800 p-6 text-white sm:p-8 lg:border-b-0 lg:border-r">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">Stage 5.1</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200"></p>
               <h1 className="mt-3 text-3xl font-bold sm:text-4xl">{campaign.title || 'Untitled campaign'}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200">
                 Connect the Instagram account for this campaign before we unlock posting and scheduling in later stages.
